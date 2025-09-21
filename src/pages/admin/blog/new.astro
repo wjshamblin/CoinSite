@@ -1,0 +1,433 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+export const prerender = false; // Enable server-side rendering for authentication
+
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { requireAuth } from '../../../lib/authMiddleware';
+
+// Check authentication
+const user = await requireAuth(Astro);
+
+const errors = {};
+let formData = {
+	title: '',
+	slug: '',
+	description: '',
+	content: '',
+	pubDate: new Date().toISOString().split('T')[0], // Today's date
+	heroImage: ''
+};
+
+if (Astro.request.method === 'POST') {
+	try {
+		const data = await Astro.request.formData();
+		formData = {
+			title: data.get('title') as string,
+			slug: data.get('slug') as string,
+			description: data.get('description') as string,
+			content: data.get('content') as string,
+			pubDate: data.get('pubDate') as string,
+			heroImage: data.get('heroImage') as string
+		};
+
+		// Basic validation
+		if (!formData.title) errors.title = 'Title is required';
+		if (!formData.slug) errors.slug = 'Slug is required';
+		if (!formData.description) errors.description = 'Description is required';
+		if (!formData.content) errors.content = 'Content is required';
+		if (!formData.pubDate) errors.pubDate = 'Publication date is required';
+
+		// If no errors, create the markdown file
+		if (Object.keys(errors).length === 0) {
+			const frontmatter = `---
+title: "${formData.title}"
+description: "${formData.description}"
+pubDate: "${formData.pubDate}"${formData.heroImage ? `\nheroImage: "${formData.heroImage}"` : ''}
+---
+
+${formData.content}`;
+
+			const filePath = join(process.cwd(), 'src', 'content', 'blog', `${formData.slug}.md`);
+			await writeFile(filePath, frontmatter, 'utf-8');
+
+			return Astro.redirect('/admin/blog');
+		}
+	} catch (error) {
+		console.error('Error creating blog post:', error);
+		errors.general = 'An error occurred while creating the blog post';
+	}
+}
+---
+
+<AdminLayout title="New Blog Post">
+	<div class="page-header">
+		<h1>Create New Blog Post</h1>
+		<a href="/admin/blog" class="btn btn-outline">← Back to Blog Posts</a>
+	</div>
+
+	<form method="POST" class="admin-form">
+		{errors.general && (
+			<div class="alert alert-error">
+				{errors.general}
+			</div>
+		)}
+
+		<div class="form-row">
+			<div class="form-group">
+				<label for="title">Post Title *</label>
+				<input
+					type="text"
+					id="title"
+					name="title"
+					value={formData.title}
+					placeholder="e.g. The History of Roman Coinage"
+					required
+					class={errors.title ? 'error' : ''}
+				/>
+				{errors.title && <span class="error-text">{errors.title}</span>}
+			</div>
+
+			<div class="form-group">
+				<label for="slug">Slug *</label>
+				<input
+					type="text"
+					id="slug"
+					name="slug"
+					value={formData.slug}
+					placeholder="e.g. history-of-roman-coinage"
+					required
+					pattern="[a-z0-9-]+"
+					class={errors.slug ? 'error' : ''}
+				/>
+				<small>Lowercase letters, numbers, and hyphens only</small>
+				{errors.slug && <span class="error-text">{errors.slug}</span>}
+			</div>
+		</div>
+
+		<div class="form-group">
+			<label for="description">Description *</label>
+			<textarea
+				id="description"
+				name="description"
+				rows="2"
+				placeholder="Brief description of the post..."
+				required
+				class={errors.description ? 'error' : ''}
+			>{formData.description}</textarea>
+			<small>This appears in post previews and meta descriptions</small>
+			{errors.description && <span class="error-text">{errors.description}</span>}
+		</div>
+
+		<div class="form-row">
+			<div class="form-group">
+				<label for="pubDate">Publication Date *</label>
+				<input
+					type="date"
+					id="pubDate"
+					name="pubDate"
+					value={formData.pubDate}
+					required
+					class={errors.pubDate ? 'error' : ''}
+				/>
+				{errors.pubDate && <span class="error-text">{errors.pubDate}</span>}
+			</div>
+
+			<div class="form-group">
+				<label for="heroImage">Hero Image (optional)</label>
+				<input
+					type="text"
+					id="heroImage"
+					name="heroImage"
+					value={formData.heroImage}
+					placeholder="e.g. blog-hero-image.jpg"
+				/>
+				<small>Upload to <code>src/assets/</code> first, then enter filename</small>
+			</div>
+		</div>
+
+		<div class="form-group">
+			<label for="content">Content *</label>
+			<textarea
+				id="content"
+				name="content"
+				rows="20"
+				placeholder="Write your blog post content in Markdown..."
+				required
+				class={errors.content ? 'error' : ''}
+			>{formData.content}</textarea>
+			<small>You can use Markdown syntax for formatting</small>
+			{errors.content && <span class="error-text">{errors.content}</span>}
+		</div>
+
+		<div class="form-actions">
+			<button type="submit" class="btn btn-primary">
+				Create Blog Post
+			</button>
+			<a href="/admin/blog" class="btn btn-outline">
+				Cancel
+			</a>
+		</div>
+	</form>
+
+	<div class="help-section">
+		<h3>📝 Markdown Tips</h3>
+		<div class="markdown-help">
+			<div class="help-column">
+				<h4>Formatting</h4>
+				<ul>
+					<li><code>**bold text**</code> → <strong>bold text</strong></li>
+					<li><code>*italic text*</code> → <em>italic text</em></li>
+					<li><code>`code`</code> → <code>code</code></li>
+				</ul>
+			</div>
+			<div class="help-column">
+				<h4>Structure</h4>
+				<ul>
+					<li><code># Heading 1</code></li>
+					<li><code>## Heading 2</code></li>
+					<li><code>- List item</code></li>
+					<li><code>[link text](url)</code></li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</AdminLayout>
+
+<style>
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0;
+		color: #495057;
+	}
+
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		text-decoration: none;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:hover {
+		background: #0056b3;
+	}
+
+	.btn-primary {
+		background: #007bff;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline:hover {
+		background: #007bff;
+		color: white;
+	}
+
+	.admin-form {
+		background: white;
+		padding: 2rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		margin-bottom: 2rem;
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 1rem;
+	}
+
+	.form-group {
+		margin-bottom: 1.5rem;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+		color: #495057;
+	}
+
+	.form-group input,
+	.form-group textarea {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #ced4da;
+		border-radius: 4px;
+		font-size: 1rem;
+		transition: border-color 0.2s;
+		font-family: inherit;
+	}
+
+	.form-group textarea {
+		resize: vertical;
+		min-height: 120px;
+	}
+
+	.form-group input:focus,
+	.form-group textarea:focus {
+		outline: none;
+		border-color: #007bff;
+		box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+	}
+
+	.form-group input.error,
+	.form-group textarea.error {
+		border-color: #dc3545;
+	}
+
+	.form-group small {
+		display: block;
+		margin-top: 0.25rem;
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+
+	.error-text {
+		color: #dc3545;
+		font-size: 0.875rem;
+		margin-top: 0.25rem;
+		display: block;
+	}
+
+	.alert {
+		padding: 1rem;
+		border-radius: 4px;
+		margin-bottom: 1.5rem;
+	}
+
+	.alert-error {
+		background: #f8d7da;
+		color: #721c24;
+		border: 1px solid #f5c6cb;
+	}
+
+	.form-actions {
+		display: flex;
+		gap: 1rem;
+		margin-top: 2rem;
+		padding-top: 1rem;
+		border-top: 1px solid #dee2e6;
+	}
+
+	.help-section {
+		background: #f8f9fa;
+		padding: 1.5rem;
+		border-radius: 8px;
+		border-left: 4px solid #28a745;
+	}
+
+	.help-section h3 {
+		margin-top: 0;
+		color: #495057;
+	}
+
+	.markdown-help {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 2rem;
+	}
+
+	.help-column h4 {
+		color: #495057;
+		margin-bottom: 0.5rem;
+	}
+
+	.help-column ul {
+		margin: 0;
+		padding-left: 1.2rem;
+	}
+
+	.help-column li {
+		margin-bottom: 0.25rem;
+		color: #6c757d;
+		font-size: 0.9rem;
+	}
+
+	code {
+		background: #e9ecef;
+		padding: 0.2rem 0.4rem;
+		border-radius: 3px;
+		font-size: 0.875rem;
+	}
+
+	@media (max-width: 768px) {
+		.page-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 1rem;
+		}
+
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+
+		.form-actions {
+			flex-direction: column;
+		}
+
+		.markdown-help {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
+
+<script>
+	// Auto-generate slug from title
+	document.getElementById('title').addEventListener('input', function(e) {
+		const slug = e.target.value
+			.toLowerCase()
+			.replace(/[^a-z0-9\s-]/g, '')
+			.replace(/\s+/g, '-')
+			.replace(/-+/g, '-')
+			.trim();
+		document.getElementById('slug').value = slug;
+	});
+
+	// Add basic markdown shortcuts
+	document.getElementById('content').addEventListener('keydown', function(e) {
+		if (e.ctrlKey || e.metaKey) {
+			switch(e.key) {
+				case 'b':
+					e.preventDefault();
+					insertMarkdown('**', '**');
+					break;
+				case 'i':
+					e.preventDefault();
+					insertMarkdown('*', '*');
+					break;
+			}
+		}
+	});
+
+	function insertMarkdown(before, after) {
+		const textarea = document.getElementById('content');
+		const start = textarea.selectionStart;
+		const end = textarea.selectionEnd;
+		const selected = textarea.value.substring(start, end);
+		const replacement = before + selected + after;
+
+		textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+		textarea.focus();
+		textarea.selectionStart = start + before.length;
+		textarea.selectionEnd = start + before.length + selected.length;
+	}
+</script>

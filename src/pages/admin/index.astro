@@ -1,0 +1,271 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { db, Collections, Coins, Images, eq } from 'astro:db';
+import { requireAuth } from '../../lib/authMiddleware';
+
+export const prerender = false; // Enable server-side rendering for authentication
+
+// Check authentication
+const user = await requireAuth(Astro);
+
+// Get statistics for dashboard
+const stats = {
+	collections: await db.select().from(Collections).then(rows => rows.length),
+	coins: await db.select().from(Coins).then(rows => rows.length),
+	images: await db.select().from(Images).then(rows => rows.length),
+};
+
+// Get recent additions
+const recentCollections = await db.select().from(Collections).orderBy(Collections.createdAt).limit(5);
+const recentCoins = await db
+	.select({
+		coin: Coins,
+		collection: Collections
+	})
+	.from(Coins)
+	.leftJoin(Collections, eq(Coins.collectionId, Collections.id))
+	.orderBy(Coins.createdAt)
+	.limit(5);
+---
+
+<AdminLayout title="Dashboard">
+	<h1>Dashboard</h1>
+
+	<div class="stats-grid">
+		<div class="stat-card">
+			<div class="stat-icon">📚</div>
+			<div class="stat-content">
+				<h3>{stats.collections}</h3>
+				<p>Collections</p>
+			</div>
+		</div>
+
+		<div class="stat-card">
+			<div class="stat-icon">🪙</div>
+			<div class="stat-content">
+				<h3>{stats.coins}</h3>
+				<p>Coins</p>
+			</div>
+		</div>
+
+		<div class="stat-card">
+			<div class="stat-icon">🖼️</div>
+			<div class="stat-content">
+				<h3>{stats.images}</h3>
+				<p>Images</p>
+			</div>
+		</div>
+	</div>
+
+	<div class="dashboard-sections">
+		<section class="dashboard-section">
+			<h2>Recent Collections</h2>
+			<div class="recent-items">
+				{recentCollections.map((collection) => (
+					<div class="recent-item">
+						<strong>{collection.name}</strong>
+						<small>{collection.description}</small>
+						<div class="item-actions">
+							<a href={`/admin/collections/edit/${collection.id}`}>Edit</a>
+							<a href={`/collections/${collection.slug}`} target="_blank">View</a>
+						</div>
+					</div>
+				))}
+			</div>
+			<a href="/admin/collections" class="section-link">Manage all collections →</a>
+		</section>
+
+		<section class="dashboard-section">
+			<h2>Recent Coins</h2>
+			<div class="recent-items">
+				{recentCoins.map(({ coin, collection }) => (
+					<div class="recent-item">
+						<strong>{coin.name}</strong>
+						<small>in {collection?.name}</small>
+						<div class="item-actions">
+							<a href={`/admin/coins/edit/${coin.id}`}>Edit</a>
+							<a href={`/collections/${collection?.slug}/${coin.slug}`} target="_blank">View</a>
+						</div>
+					</div>
+				))}
+			</div>
+			<a href="/admin/coins" class="section-link">Manage all coins →</a>
+		</section>
+	</div>
+
+	<div class="quick-actions">
+		<h2>Quick Actions</h2>
+		<div class="action-buttons">
+			<a href="/admin/collections/new" class="action-button primary">
+				📚 New Collection
+			</a>
+			<a href="/admin/coins/new" class="action-button primary">
+				🪙 New Coin
+			</a>
+			<a href="/admin/blog/new" class="action-button">
+				✍️ New Blog Post
+			</a>
+			<a href="/admin/images" class="action-button">
+				🖼️ Manage Images
+			</a>
+		</div>
+	</div>
+</AdminLayout>
+
+<style>
+	.stats-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: 1.5rem;
+		margin-bottom: 3rem;
+	}
+
+	.stat-card {
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		color: white;
+		padding: 1.5rem;
+		border-radius: 8px;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	}
+
+	.stat-icon {
+		font-size: 2rem;
+	}
+
+	.stat-content h3 {
+		margin: 0;
+		font-size: 2rem;
+		font-weight: bold;
+	}
+
+	.stat-content p {
+		margin: 0;
+		opacity: 0.9;
+		font-size: 0.9rem;
+	}
+
+	.dashboard-sections {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 2rem;
+		margin-bottom: 3rem;
+	}
+
+	.dashboard-section {
+		background: #f8f9fa;
+		padding: 1.5rem;
+		border-radius: 8px;
+		border: 1px solid #e9ecef;
+	}
+
+	.dashboard-section h2 {
+		margin-top: 0;
+		color: #495057;
+		border-bottom: 2px solid #dee2e6;
+		padding-bottom: 0.5rem;
+	}
+
+	.recent-items {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+
+	.recent-item {
+		background: white;
+		padding: 1rem;
+		border-radius: 4px;
+		border: 1px solid #dee2e6;
+	}
+
+	.recent-item strong {
+		display: block;
+		color: #495057;
+		margin-bottom: 0.25rem;
+	}
+
+	.recent-item small {
+		color: #6c757d;
+		display: block;
+		margin-bottom: 0.5rem;
+	}
+
+	.item-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.item-actions a {
+		font-size: 0.8rem;
+		padding: 0.25rem 0.5rem;
+		background: #e9ecef;
+		color: #495057;
+		text-decoration: none;
+		border-radius: 3px;
+		transition: background-color 0.2s;
+	}
+
+	.item-actions a:hover {
+		background: #dee2e6;
+	}
+
+	.section-link {
+		color: #007bff;
+		text-decoration: none;
+		font-weight: 500;
+		font-size: 0.9rem;
+	}
+
+	.section-link:hover {
+		text-decoration: underline;
+	}
+
+	.quick-actions h2 {
+		color: #495057;
+		margin-bottom: 1rem;
+	}
+
+	.action-buttons {
+		display: flex;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.action-button {
+		display: inline-block;
+		padding: 0.75rem 1.5rem;
+		background: #6c757d;
+		color: white;
+		text-decoration: none;
+		border-radius: 5px;
+		font-weight: 500;
+		transition: all 0.2s;
+	}
+
+	.action-button:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+	}
+
+	.action-button.primary {
+		background: #007bff;
+	}
+
+	.action-button.primary:hover {
+		background: #0056b3;
+	}
+
+	@media (max-width: 768px) {
+		.dashboard-sections {
+			grid-template-columns: 1fr;
+		}
+
+		.action-buttons {
+			flex-direction: column;
+		}
+	}
+</style>

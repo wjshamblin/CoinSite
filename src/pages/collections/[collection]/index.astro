@@ -1,0 +1,126 @@
+---
+// Collection detail page - shows gallery of all coins in a collection
+import Layout from '../../../layouts/Layout.astro';
+import { Image } from 'astro:assets';
+import { db, Collections, Coins, eq } from 'astro:db';
+
+export const prerender = false;
+
+// Server-side rendering - get collection by slug from URL params
+const { collection: collectionSlug } = Astro.params;
+
+// Find the collection by slug
+const collections = await db
+	.select()
+	.from(Collections)
+	.where(eq(Collections.slug, collectionSlug));
+
+if (collections.length === 0) {
+	return new Response('Collection not found', { status: 404 });
+}
+
+const collection = collections[0];
+
+// Get all coins for this collection
+const coins = await db
+	.select()
+	.from(Coins)
+	.where(eq(Coins.collectionId, collection.id));
+---
+
+<Layout title={`${collection.name} - Coins`}>
+	<main>
+		<nav class="breadcrumb">
+			<a href="/collections">Collections</a> / <span>{collection.name}</span>
+		</nav>
+
+		<h1>{collection.name}</h1>
+		<p class="collection-description">{collection.description}</p>
+
+		<div class="coins-grid">
+			{coins.map((coin) => (
+				<a href={`/collections/${collection.slug}/${coin.slug}`} class="coin-card">
+					<Image
+						src={`/images/coins/${coin.primaryImage}`}
+						alt={coin.name}
+						width={300}
+						height={200}
+						class="coin-image"
+						loading="lazy"
+					/>
+					<div class="coin-info">
+						<h3>{coin.name}</h3>
+						{coin.year && <p class="coin-year">{coin.year}</p>}
+						{coin.condition && <p class="coin-condition">{coin.condition}</p>}
+					</div>
+				</a>
+			))}
+		</div>
+	</main>
+</Layout>
+
+<style>
+	.breadcrumb {
+		margin-bottom: 1rem;
+		font-size: 0.9rem;
+	}
+
+	.breadcrumb a {
+		color: #0066cc;
+		text-decoration: none;
+	}
+
+	.breadcrumb a:hover {
+		text-decoration: underline;
+	}
+
+	.collection-description {
+		font-size: 1.1rem;
+		color: #666;
+		margin-bottom: 2rem;
+		line-height: 1.6;
+	}
+
+	.coins-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+		gap: 1.5rem;
+	}
+
+	.coin-card {
+		text-decoration: none;
+		border: 1px solid #ddd;
+		border-radius: 8px;
+		overflow: hidden;
+		transition: transform 0.2s, box-shadow 0.2s;
+		color: inherit;
+	}
+
+	.coin-card:hover {
+		transform: translateY(-3px);
+		box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+	}
+
+	.coin-image {
+		width: 100%;
+		height: 200px;
+		object-fit: cover;
+	}
+
+	.coin-info {
+		padding: 1rem;
+	}
+
+	.coin-info h3 {
+		margin: 0 0 0.5rem 0;
+		color: #333;
+		font-size: 1.1rem;
+	}
+
+	.coin-year,
+	.coin-condition {
+		margin: 0.25rem 0;
+		font-size: 0.9rem;
+		color: #666;
+	}
+</style>

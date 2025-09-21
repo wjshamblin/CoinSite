@@ -1,49 +1,271 @@
 ---
-import BaseHead from '../components/BaseHead.astro';
-import Footer from '../components/Footer.astro';
-import Header from '../components/Header.astro';
-import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+import Layout from '../layouts/Layout.astro';
+import { Image } from 'astro:assets';
+import { db, Collections } from 'astro:db';
+import CoinSlideshow from '../components/CoinSlideshow.astro';
+
+// Get featured collections for homepage
+const featuredCollections = await db.select().from(Collections).limit(3);
+
+// Featured coins for slideshow
+const featuredCoins = [
+	{
+		image: 'athens-owl-tetradrachm-1.jpg',
+		title: 'Athens Owl Tetradrachm',
+		description: 'A beautiful ancient Greek silver tetradrachm featuring Athena and her sacred owl. These iconic coins were widely used in Mediterranean trade from the 5th century BC.',
+		collection: 'Ancient Greek Coins'
+	},
+	{
+		image: 'phokaia-electrum-hekte-1.jpg',
+		title: 'Phokaia Electrum Hekte',
+		description: 'A rare electrum hekte from the ancient city of Phokaia, featuring a seal. These early coins represent some of the earliest forms of coinage in human history.',
+		collection: 'Ancient Greek Coins'
+	},
+	{
+		image: 'augustus-denarius-1.jpg',
+		title: 'Augustus Denarius',
+		description: 'A Roman silver denarius from the reign of Emperor Augustus, the first Roman Emperor. These coins marked the beginning of the Imperial period in Roman history.',
+		collection: 'Ancient Roman Coins'
+	},
+	{
+		image: 'caesar-denarius-1.jpg',
+		title: 'Julius Caesar Denarius',
+		description: 'A silver denarius featuring the portrait of Julius Caesar, one of the most recognizable figures in ancient history. These coins were minted during his lifetime.',
+		collection: 'Ancient Roman Coins'
+	},
+	{
+		image: 'charles-i-penny-1.jpg',
+		title: 'Charles I Hammered Penny',
+		description: 'A hammered silver penny from the reign of King Charles I of England. These hand-struck coins represent the traditional coinage methods of medieval Europe.',
+		collection: 'Medieval European Coins'
+	}
+];
 ---
 
-<!doctype html>
-<html lang="en">
-	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-	</head>
-	<body>
-		<Header />
-		<main>
-			<h1>🧑‍🚀 Hello, Astronaut!</h1>
+<Layout title="Coin Collections - Explore Numismatic History">
+	<section class="hero">
+		<h1>Discover Numismatic Treasures</h1>
+		<p class="hero-subtitle">
+			Explore our comprehensive collection of historical coins from ancient civilizations to modern commemoratives.
+			Each piece tells a story of history, artistry, and cultural significance.
+		</p>
+		<a href="/collections" class="cta-button">Browse All Collections</a>
+	</section>
+
+	<section class="featured-coins">
+		<h2>Featured Coins</h2>
+		<CoinSlideshow coins={featuredCoins} />
+	</section>
+
+	<section class="featured-collections">
+		<h2>Featured Collections</h2>
+		<div class="collections-preview">
+			{featuredCollections.map((collection) => (
+				<div class="collection-preview">
+					<a href={`/collections/${collection.slug}`}>
+						<Image
+							src={`/images/collections/${collection.thumbnail}`}
+							alt={collection.name}
+							width={350}
+							height={200}
+							class="preview-image"
+							loading="lazy"
+						/>
+						<h3>{collection.name}</h3>
+						<p>{collection.description}</p>
+					</a>
+				</div>
+			))}
+		</div>
+	</section>
+
+	<section class="about-site">
+		<h2>About Our Collection</h2>
+		<div class="about-content">
 			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This
-				template serves as a lightweight, minimally-styled starting point for anyone looking to build
-				a personal website, blog, or portfolio with Astro.
+				Our coin collection spans thousands of years of human history, from ancient Greek city-states
+				to modern commemorative issues. Each collection is carefully curated with detailed imagery
+				and historical context.
 			</p>
 			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
+				Explore individual coins with high-resolution photographs showing obverse, reverse, and
+				detail views. Learn about mintages, historical significance, and the stories behind each piece.
 			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
-			</ul>
-			<p>
-				Have fun! If you get stuck, remember to
-				<a href="https://docs.astro.build/">read the docs</a>
-				or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
-			</p>
-			<p>
-				Looking for a blog template with a bit more personality? Check out
-				<a href="https://github.com/Charca/astro-blog-template">astro-blog-template</a>
-				by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
-			</p>
-		</main>
-		<Footer />
-	</body>
-</html>
+			<div class="stats">
+				<div class="stat">
+					<strong>6</strong>
+					<span>Collections</span>
+				</div>
+				<div class="stat">
+					<strong>200+</strong>
+					<span>Coins</span>
+				</div>
+				<div class="stat">
+					<strong>1000+</strong>
+					<span>Images</span>
+				</div>
+			</div>
+		</div>
+	</section>
+</Layout>
+
+<style>
+	.hero {
+		text-align: center;
+		padding: 4rem 0;
+		background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+		border-radius: 12px;
+		margin-bottom: 4rem;
+	}
+
+	.hero h1 {
+		font-size: 3rem;
+		margin-bottom: 1rem;
+		color: #2c3e50;
+	}
+
+	.hero-subtitle {
+		font-size: 1.2rem;
+		color: #666;
+		max-width: 600px;
+		margin: 0 auto 2rem;
+		line-height: 1.6;
+	}
+
+	.cta-button {
+		display: inline-block;
+		background: #3498db;
+		color: white;
+		padding: 1rem 2rem;
+		text-decoration: none;
+		border-radius: 6px;
+		font-weight: bold;
+		transition: background-color 0.3s;
+	}
+
+	.cta-button:hover {
+		background: #2980b9;
+	}
+
+	.featured-coins {
+		margin-bottom: 4rem;
+	}
+
+	.featured-coins h2 {
+		text-align: center;
+		margin-bottom: 2rem;
+		color: #2c3e50;
+		font-size: 2.5rem;
+	}
+
+	.featured-collections {
+		margin-bottom: 4rem;
+	}
+
+	.featured-collections h2 {
+		text-align: center;
+		margin-bottom: 2rem;
+		color: #2c3e50;
+	}
+
+	.collections-preview {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		gap: 2rem;
+	}
+
+	.collection-preview {
+		border: 1px solid #ddd;
+		border-radius: 8px;
+		overflow: hidden;
+		transition: transform 0.3s, box-shadow 0.3s;
+	}
+
+	.collection-preview:hover {
+		transform: translateY(-5px);
+		box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+	}
+
+	.collection-preview a {
+		text-decoration: none;
+		color: inherit;
+		display: block;
+	}
+
+	.preview-image {
+		width: 100%;
+		height: 200px;
+		object-fit: cover;
+	}
+
+	.collection-preview h3 {
+		margin: 1rem;
+		color: #2c3e50;
+	}
+
+	.collection-preview p {
+		margin: 0 1rem 1rem;
+		color: #666;
+		line-height: 1.5;
+	}
+
+	.about-site {
+		background: #f8f9fa;
+		padding: 3rem;
+		border-radius: 12px;
+		margin-bottom: 2rem;
+	}
+
+	.about-site h2 {
+		text-align: center;
+		margin-bottom: 2rem;
+		color: #2c3e50;
+	}
+
+	.about-content p {
+		max-width: 800px;
+		margin: 0 auto 1.5rem;
+		line-height: 1.7;
+		color: #555;
+		text-align: center;
+	}
+
+	.stats {
+		display: flex;
+		justify-content: center;
+		gap: 3rem;
+		margin-top: 2rem;
+	}
+
+	.stat {
+		text-align: center;
+	}
+
+	.stat strong {
+		display: block;
+		font-size: 2rem;
+		color: #3498db;
+		margin-bottom: 0.5rem;
+	}
+
+	.stat span {
+		color: #666;
+		font-size: 0.9rem;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+	}
+
+	@media (max-width: 768px) {
+		.hero h1 {
+			font-size: 2rem;
+		}
+
+		.stats {
+			gap: 2rem;
+		}
+
+		.about-site {
+			padding: 2rem;
+		}
+	}
+</style>

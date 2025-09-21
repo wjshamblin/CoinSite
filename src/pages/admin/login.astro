@@ -1,0 +1,263 @@
+---
+import BaseHead from '../../components/BaseHead.astro';
+import { verifyPassword, createSession, createSessionCookie, getSessionFromRequest, getSessionUser } from '../../lib/auth';
+
+export const prerender = false; // Enable server-side rendering for authentication
+
+// Check if user is already logged in
+const sessionToken = getSessionFromRequest(Astro.request);
+if (sessionToken) {
+  const user = await getSessionUser(sessionToken);
+  if (user) {
+    return Astro.redirect('/admin');
+  }
+}
+
+let error = '';
+let username = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    username = formData.get('username') as string;
+    const password = formData.get('password') as string;
+
+    if (!username || !password) {
+      error = 'Please enter both username and password';
+    } else {
+      const user = await verifyPassword(username, password);
+
+      if (user) {
+        // Create session and set cookie
+        const sessionToken = await createSession(user.id);
+        const cookie = createSessionCookie(sessionToken);
+
+        Astro.response.headers.set('Set-Cookie', cookie);
+        return Astro.redirect('/admin');
+      } else {
+        error = 'Invalid username or password';
+      }
+    }
+  } catch (err) {
+    console.error('Login error:', err);
+    error = 'An error occurred during login';
+  }
+}
+---
+
+<html lang="en">
+  <head>
+    <BaseHead title="Admin Login" description="Admin Panel Login" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .login-container {
+        background: white;
+        padding: 3rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 400px;
+        margin: 1rem;
+      }
+
+      .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      .login-header h1 {
+        margin: 0 0 0.5rem 0;
+        color: #2c3e50;
+        font-size: 2rem;
+      }
+
+      .login-header p {
+        margin: 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+      }
+
+      .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .form-group label {
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .form-group input {
+        padding: 0.875rem;
+        border: 2px solid #e9ecef;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: border-color 0.2s;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 0.875rem;
+        border-radius: 6px;
+        border: 1px solid #f5c6cb;
+        font-size: 0.9rem;
+        text-align: center;
+      }
+
+      .login-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .login-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      .login-button:active {
+        transform: translateY(0);
+      }
+
+      .site-link {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e9ecef;
+      }
+
+      .site-link a {
+        color: #667eea;
+        text-decoration: none;
+        font-size: 0.9rem;
+      }
+
+      .site-link a:hover {
+        text-decoration: underline;
+      }
+
+      .demo-info {
+        background: #d1ecf1;
+        color: #0c5460;
+        padding: 1rem;
+        border-radius: 6px;
+        border: 1px solid #bee5eb;
+        margin-bottom: 1.5rem;
+        font-size: 0.875rem;
+        text-align: center;
+      }
+
+      .demo-info strong {
+        display: block;
+        margin-bottom: 0.5rem;
+      }
+
+      @media (max-width: 480px) {
+        .login-container {
+          padding: 2rem;
+          margin: 0.5rem;
+        }
+
+        .login-header h1 {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="login-container">
+      <div class="login-header">
+        <h1>🪙 Admin Login</h1>
+        <p>Coin Collection Management</p>
+      </div>
+
+      <div class="demo-info">
+        <strong>Demo Credentials:</strong>
+        Username: <code>admin</code><br>
+        Password: <code>admin123</code>
+      </div>
+
+      <form method="POST" class="login-form">
+        {error && (
+          <div class="error-message">
+            {error}
+          </div>
+        )}
+
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            value={username}
+            placeholder="Enter your username"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Enter your password"
+            required
+          />
+        </div>
+
+        <button type="submit" class="login-button">
+          Sign In
+        </button>
+      </form>
+
+      <div class="site-link">
+        <a href="/">← Back to Site</a>
+      </div>
+    </div>
+
+    <script>
+      // Focus username field on page load
+      document.getElementById('username').focus();
+
+      // Enter key support
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          document.querySelector('form').submit();
+        }
+      });
+    </script>
+  </body>
+</html>

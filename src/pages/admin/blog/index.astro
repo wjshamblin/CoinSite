@@ -1,0 +1,245 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getCollection } from 'astro:content';
+import { requireAuth } from '../../../lib/authMiddleware';
+
+export const prerender = false; // Enable server-side rendering for authentication
+
+// Check authentication
+const user = await requireAuth(Astro);
+
+const blogPosts = await getCollection('blog');
+---
+
+<AdminLayout title="Blog Posts">
+	<div class="page-header">
+		<h1>Blog Posts</h1>
+		<a href="/admin/blog/new" class="btn btn-primary">
+			➕ New Blog Post
+		</a>
+	</div>
+
+	<div class="posts-table">
+		<table>
+			<thead>
+				<tr>
+					<th>Title</th>
+					<th>Description</th>
+					<th>Published</th>
+					<th>Updated</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				{blogPosts.map((post) => (
+					<tr>
+						<td>
+							<strong>{post.data.title}</strong>
+						</td>
+						<td>
+							<span class="description">{post.data.description}</span>
+						</td>
+						<td>
+							{new Date(post.data.pubDate).toLocaleDateString()}
+						</td>
+						<td>
+							{post.data.updatedDate
+								? new Date(post.data.updatedDate).toLocaleDateString()
+								: '-'
+							}
+						</td>
+						<td>
+							<div class="actions">
+								<a href={`/admin/blog/edit/${post.slug}`} class="btn btn-sm">Edit</a>
+								<a href={`/blog/${post.slug}`} target="_blank" class="btn btn-sm btn-outline">View</a>
+								<button
+									class="btn btn-sm btn-danger"
+									onclick={`deletePost('${post.slug}', '${post.data.title.replace(/'/g, "\\'")}')`}
+								>
+									Delete
+								</button>
+							</div>
+						</td>
+					</tr>
+				))}
+			</tbody>
+		</table>
+	</div>
+
+	{blogPosts.length === 0 && (
+		<div class="empty-state">
+			<h3>No blog posts yet</h3>
+			<p>Start sharing your thoughts and insights about numismatics.</p>
+			<a href="/admin/blog/new" class="btn btn-primary">Write First Post</a>
+		</div>
+	)}
+</AdminLayout>
+
+<style>
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0;
+		color: #495057;
+	}
+
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		text-decoration: none;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:hover {
+		background: #0056b3;
+	}
+
+	.btn-primary {
+		background: #007bff;
+	}
+
+	.btn-sm {
+		padding: 0.25rem 0.5rem;
+		font-size: 0.8rem;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline:hover {
+		background: #007bff;
+		color: white;
+	}
+
+	.btn-danger {
+		background: #dc3545;
+	}
+
+	.btn-danger:hover {
+		background: #c82333;
+	}
+
+	.posts-table {
+		background: white;
+		border-radius: 8px;
+		overflow: hidden;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	th,
+	td {
+		padding: 1rem;
+		text-align: left;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	th {
+		background: #f8f9fa;
+		font-weight: 600;
+		color: #495057;
+		font-size: 0.9rem;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+
+	tbody tr:hover {
+		background: #f8f9fa;
+	}
+
+	.description {
+		color: #6c757d;
+		font-size: 0.9rem;
+		display: block;
+		max-width: 300px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.empty-state {
+		text-align: center;
+		padding: 3rem;
+		color: #6c757d;
+	}
+
+	.empty-state h3 {
+		color: #495057;
+		margin-bottom: 0.5rem;
+	}
+
+	.empty-state p {
+		margin-bottom: 1.5rem;
+	}
+
+	@media (max-width: 768px) {
+		.page-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 1rem;
+		}
+
+		.posts-table {
+			overflow-x: auto;
+		}
+
+		table {
+			min-width: 600px;
+		}
+	}
+</style>
+
+<script>
+	window.deletePost = function(slug, title) {
+		if (confirm(`Are you sure you want to delete the blog post "${title}"?`)) {
+			console.log('Deleting blog post:', slug);
+			fetch(`/admin/api/blog/${slug}`, {
+				method: 'DELETE',
+			})
+			.then(response => {
+				console.log('Response status:', response.status);
+				console.log('Response ok:', response.ok);
+				return response.json().then(data => ({ status: response.status, ok: response.ok, data }));
+			})
+			.then(({ status, ok, data }) => {
+				console.log('Response data:', data);
+				if (ok) {
+					alert(data.message || 'Blog post deleted successfully');
+					location.reload();
+				} else {
+					alert('Error deleting blog post: ' + (data.error || 'Unknown error'));
+				}
+			})
+			.catch(error => {
+				console.error('Fetch error:', error);
+				alert('Network error deleting blog post: ' + error.message);
+			});
+		}
+	}
+</script>

@@ -1,0 +1,416 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+export const prerender = false; // Enable server-side rendering for authentication
+
+import { db, Collections, Coins } from 'astro:db';
+import { requireAuth } from '../../../lib/authMiddleware';
+
+// Check authentication
+const user = await requireAuth(Astro);
+
+// Get all collections for the dropdown
+const collections = await db.select().from(Collections).orderBy(Collections.name);
+
+const errors = {};
+let formData = {
+	name: '',
+	slug: '',
+	description: '',
+	collectionId: '',
+	year: '',
+	mintage: '',
+	condition: '',
+	primaryImage: ''
+};
+
+if (Astro.request.method === 'POST') {
+	try {
+		const data = await Astro.request.formData();
+		formData = {
+			name: data.get('name') as string,
+			slug: data.get('slug') as string,
+			description: data.get('description') as string,
+			collectionId: data.get('collectionId') as string,
+			year: data.get('year') as string,
+			mintage: data.get('mintage') as string,
+			condition: data.get('condition') as string,
+			primaryImage: data.get('primaryImage') as string
+		};
+
+		// Basic validation
+		if (!formData.name) errors.name = 'Name is required';
+		if (!formData.slug) errors.slug = 'Slug is required';
+		if (!formData.collectionId) errors.collectionId = 'Collection is required';
+		if (!formData.primaryImage) errors.primaryImage = 'Primary image filename is required';
+
+		// If no errors, save to database
+		if (Object.keys(errors).length === 0) {
+			await db.insert(Coins).values({
+				name: formData.name,
+				slug: formData.slug,
+				description: formData.description || null,
+				collectionId: parseInt(formData.collectionId),
+				year: formData.year ? parseInt(formData.year) : null,
+				mintage: formData.mintage || null,
+				condition: formData.condition || null,
+				primaryImage: formData.primaryImage,
+				createdAt: new Date()
+			});
+
+			return Astro.redirect('/admin/coins');
+		}
+	} catch (error) {
+		console.error('Error creating coin:', error);
+		errors.general = 'An error occurred while creating the coin';
+	}
+}
+---
+
+<AdminLayout title="New Coin">
+	<div class="page-header">
+		<h1>Add New Coin</h1>
+		<a href="/admin/coins" class="btn btn-outline">← Back to Coins</a>
+	</div>
+
+	<form method="POST" class="admin-form">
+		{errors.general && (
+			<div class="alert alert-error">
+				{errors.general}
+			</div>
+		)}
+
+		<div class="form-row">
+			<div class="form-group">
+				<label for="name">Coin Name *</label>
+				<input
+					type="text"
+					id="name"
+					name="name"
+					value={formData.name}
+					placeholder="e.g. Augustus Denarius"
+					required
+					class={errors.name ? 'error' : ''}
+				/>
+				{errors.name && <span class="error-text">{errors.name}</span>}
+			</div>
+
+			<div class="form-group">
+				<label for="slug">Slug *</label>
+				<input
+					type="text"
+					id="slug"
+					name="slug"
+					value={formData.slug}
+					placeholder="e.g. augustus-denarius"
+					required
+					pattern="[a-z0-9-]+"
+					class={errors.slug ? 'error' : ''}
+				/>
+				<small>Lowercase letters, numbers, and hyphens only</small>
+				{errors.slug && <span class="error-text">{errors.slug}</span>}
+			</div>
+		</div>
+
+		<div class="form-group">
+			<label for="collectionId">Collection *</label>
+			<select
+				id="collectionId"
+				name="collectionId"
+				required
+				class={errors.collectionId ? 'error' : ''}
+			>
+				<option value="">Select a collection...</option>
+				{collections.map((collection) => (
+					<option
+						value={collection.id}
+						selected={formData.collectionId === collection.id.toString()}
+					>
+						{collection.name}
+					</option>
+				))}
+			</select>
+			{errors.collectionId && <span class="error-text">{errors.collectionId}</span>}
+		</div>
+
+		<div class="form-group">
+			<label for="description">Description</label>
+			<textarea
+				id="description"
+				name="description"
+				rows="3"
+				placeholder="Describe this coin..."
+				class={errors.description ? 'error' : ''}
+			>{formData.description}</textarea>
+			{errors.description && <span class="error-text">{errors.description}</span>}
+		</div>
+
+		<div class="form-row">
+			<div class="form-group">
+				<label for="year">Year</label>
+				<input
+					type="number"
+					id="year"
+					name="year"
+					value={formData.year}
+					placeholder="e.g. 1995"
+					min="1"
+					max={new Date().getFullYear()}
+				/>
+			</div>
+
+			<div class="form-group">
+				<label for="condition">Condition</label>
+				<select id="condition" name="condition">
+					<option value="">Select condition...</option>
+					<option value="Poor" selected={formData.condition === 'Poor'}>Poor</option>
+					<option value="Fair" selected={formData.condition === 'Fair'}>Fair</option>
+					<option value="Good" selected={formData.condition === 'Good'}>Good</option>
+					<option value="Very Good" selected={formData.condition === 'Very Good'}>Very Good</option>
+					<option value="Fine" selected={formData.condition === 'Fine'}>Fine</option>
+					<option value="Very Fine" selected={formData.condition === 'Very Fine'}>Very Fine</option>
+					<option value="Extremely Fine" selected={formData.condition === 'Extremely Fine'}>Extremely Fine</option>
+					<option value="About Uncirculated" selected={formData.condition === 'About Uncirculated'}>About Uncirculated</option>
+					<option value="Uncirculated" selected={formData.condition === 'Uncirculated'}>Uncirculated</option>
+					<option value="Proof" selected={formData.condition === 'Proof'}>Proof</option>
+				</select>
+			</div>
+
+			<div class="form-group">
+				<label for="mintage">Mintage</label>
+				<input
+					type="text"
+					id="mintage"
+					name="mintage"
+					value={formData.mintage}
+					placeholder="e.g. 50,000 or Unknown"
+				/>
+			</div>
+		</div>
+
+		<div class="form-group">
+			<label for="primaryImage">Primary Image Filename *</label>
+			<input
+				type="text"
+				id="primaryImage"
+				name="primaryImage"
+				value={formData.primaryImage}
+				placeholder="e.g. augustus-denarius-1.jpg"
+				required
+				class={errors.primaryImage ? 'error' : ''}
+			/>
+			<small>
+				Upload your image to <code>public/images/coins/</code> first, then enter the filename here.
+				This will be the main image shown in galleries.
+			</small>
+			{errors.primaryImage && <span class="error-text">{errors.primaryImage}</span>}
+		</div>
+
+		<div class="form-actions">
+			<button type="submit" class="btn btn-primary">
+				Create Coin
+			</button>
+			<a href="/admin/coins" class="btn btn-outline">
+				Cancel
+			</a>
+		</div>
+	</form>
+
+	<div class="help-section">
+		<h3>📝 Quick Tips</h3>
+		<ul>
+			<li><strong>Primary Image:</strong> This image represents the coin in galleries</li>
+			<li><strong>Additional Images:</strong> Add more images after creating the coin</li>
+			<li><strong>Condition:</strong> Use standard numismatic grading scales</li>
+			<li><strong>Mintage:</strong> Production quantity, use "Unknown" if uncertain</li>
+		</ul>
+	</div>
+</AdminLayout>
+
+<style>
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0;
+		color: #495057;
+	}
+
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		text-decoration: none;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:hover {
+		background: #0056b3;
+	}
+
+	.btn-primary {
+		background: #007bff;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline:hover {
+		background: #007bff;
+		color: white;
+	}
+
+	.admin-form {
+		background: white;
+		padding: 2rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		margin-bottom: 2rem;
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 1rem;
+	}
+
+	.form-group {
+		margin-bottom: 1.5rem;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+		color: #495057;
+	}
+
+	.form-group input,
+	.form-group textarea,
+	.form-group select {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #ced4da;
+		border-radius: 4px;
+		font-size: 1rem;
+		transition: border-color 0.2s;
+	}
+
+	.form-group input:focus,
+	.form-group textarea:focus,
+	.form-group select:focus {
+		outline: none;
+		border-color: #007bff;
+		box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+	}
+
+	.form-group input.error,
+	.form-group textarea.error,
+	.form-group select.error {
+		border-color: #dc3545;
+	}
+
+	.form-group small {
+		display: block;
+		margin-top: 0.25rem;
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+
+	.error-text {
+		color: #dc3545;
+		font-size: 0.875rem;
+		margin-top: 0.25rem;
+		display: block;
+	}
+
+	.alert {
+		padding: 1rem;
+		border-radius: 4px;
+		margin-bottom: 1.5rem;
+	}
+
+	.alert-error {
+		background: #f8d7da;
+		color: #721c24;
+		border: 1px solid #f5c6cb;
+	}
+
+	.form-actions {
+		display: flex;
+		gap: 1rem;
+		margin-top: 2rem;
+		padding-top: 1rem;
+		border-top: 1px solid #dee2e6;
+	}
+
+	.help-section {
+		background: #f8f9fa;
+		padding: 1.5rem;
+		border-radius: 8px;
+		border-left: 4px solid #007bff;
+	}
+
+	.help-section h3 {
+		margin-top: 0;
+		color: #495057;
+	}
+
+	.help-section ul {
+		margin-bottom: 0;
+	}
+
+	.help-section li {
+		margin-bottom: 0.5rem;
+		color: #6c757d;
+	}
+
+	code {
+		background: #e9ecef;
+		padding: 0.2rem 0.4rem;
+		border-radius: 3px;
+		font-size: 0.875rem;
+	}
+
+	@media (max-width: 768px) {
+		.page-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 1rem;
+		}
+
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+
+		.form-actions {
+			flex-direction: column;
+		}
+	}
+</style>
+
+<script>
+	// Auto-generate slug from name
+	document.getElementById('name').addEventListener('input', function(e) {
+		const slug = e.target.value
+			.toLowerCase()
+			.replace(/[^a-z0-9\s-]/g, '')
+			.replace(/\s+/g, '-')
+			.replace(/-+/g, '-')
+			.trim();
+		document.getElementById('slug').value = slug;
+	});
+</script>

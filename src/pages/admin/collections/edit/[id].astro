@@ -1,0 +1,399 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+export const prerender = false; // Enable server-side rendering for authentication
+
+import { db, Collections, eq } from 'astro:db';
+import { requireAuth } from '../../../../lib/authMiddleware';
+
+// Check authentication
+const user = await requireAuth(Astro);
+
+const id = parseInt(Astro.params.id);
+
+// Get existing collection
+const collection = await db.select().from(Collections).where(eq(Collections.id, id)).then(rows => rows[0]);
+
+if (!collection) {
+	return Astro.redirect('/admin/collections');
+}
+
+const errors = {};
+let formData = {
+	name: collection.name,
+	slug: collection.slug,
+	description: collection.description,
+	thumbnail: collection.thumbnail
+};
+
+if (Astro.request.method === 'POST') {
+	try {
+		const data = await Astro.request.formData();
+		formData = {
+			name: data.get('name') as string,
+			slug: data.get('slug') as string,
+			description: data.get('description') as string,
+			thumbnail: data.get('thumbnail') as string
+		};
+
+		// Basic validation
+		if (!formData.name) errors.name = 'Name is required';
+		if (!formData.slug) errors.slug = 'Slug is required';
+		if (!formData.description) errors.description = 'Description is required';
+		if (!formData.thumbnail) errors.thumbnail = 'Thumbnail filename is required';
+
+		// If no errors, update in database
+		if (Object.keys(errors).length === 0) {
+			await db.update(Collections).set({
+				name: formData.name,
+				slug: formData.slug,
+				description: formData.description,
+				thumbnail: formData.thumbnail
+			}).where(eq(Collections.id, id));
+
+			return Astro.redirect('/admin/collections');
+		}
+	} catch (error) {
+		console.error('Error updating collection:', error);
+		errors.general = 'An error occurred while updating the collection';
+	}
+}
+---
+
+<AdminLayout title={`Edit Collection: ${collection.name}`}>
+	<div class="page-header">
+		<h1>Edit Collection</h1>
+		<div class="header-actions">
+			<a href={`/collections/${collection.slug}`} target="_blank" class="btn btn-outline">
+				👁️ View Collection
+			</a>
+			<a href="/admin/collections" class="btn btn-outline">← Back to Collections</a>
+		</div>
+	</div>
+
+	<form method="POST" class="admin-form">
+		{errors.general && (
+			<div class="alert alert-error">
+				{errors.general}
+			</div>
+		)}
+
+		<div class="form-group">
+			<label for="name">Collection Name *</label>
+			<input
+				type="text"
+				id="name"
+				name="name"
+				value={formData.name}
+				placeholder="e.g. Ancient Roman Coins"
+				required
+				class={errors.name ? 'error' : ''}
+			/>
+			{errors.name && <span class="error-text">{errors.name}</span>}
+		</div>
+
+		<div class="form-group">
+			<label for="slug">Slug *</label>
+			<input
+				type="text"
+				id="slug"
+				name="slug"
+				value={formData.slug}
+				placeholder="e.g. ancient-roman"
+				required
+				pattern="[a-z0-9-]+"
+				class={errors.slug ? 'error' : ''}
+			/>
+			<small>Lowercase letters, numbers, and hyphens only. Used in URLs.</small>
+			{errors.slug && <span class="error-text">{errors.slug}</span>}
+		</div>
+
+		<div class="form-group">
+			<label for="description">Description *</label>
+			<textarea
+				id="description"
+				name="description"
+				rows="4"
+				placeholder="Describe this collection..."
+				required
+				class={errors.description ? 'error' : ''}
+			>{formData.description}</textarea>
+			{errors.description && <span class="error-text">{errors.description}</span>}
+		</div>
+
+		<div class="form-group">
+			<label for="thumbnail">Thumbnail Filename *</label>
+			<input
+				type="text"
+				id="thumbnail"
+				name="thumbnail"
+				value={formData.thumbnail}
+				placeholder="e.g. roman-collection.jpg"
+				required
+				class={errors.thumbnail ? 'error' : ''}
+			/>
+			<small>
+				Upload your image to <code>public/images/collections/</code> first, then enter the filename here.
+			</small>
+			{errors.thumbnail && <span class="error-text">{errors.thumbnail}</span>}
+		</div>
+
+		<div class="form-actions">
+			<button type="submit" class="btn btn-primary">
+				Update Collection
+			</button>
+			<a href="/admin/collections" class="btn btn-outline">
+				Cancel
+			</a>
+			<button
+				type="button"
+				class="btn btn-danger"
+				onclick={`deleteCollection(${collection.id}, '${collection.name}')`}
+			>
+				Delete Collection
+			</button>
+		</div>
+	</form>
+
+	<div class="collection-info">
+		<h3>📊 Collection Stats</h3>
+		<div class="stats-grid">
+			<div class="stat">
+				<strong>ID:</strong> {collection.id}
+			</div>
+			<div class="stat">
+				<strong>Created:</strong> {new Date(collection.createdAt).toLocaleString()}
+			</div>
+			<div class="stat">
+				<strong>Current URL:</strong>
+				<a href={`/collections/${collection.slug}`} target="_blank">
+					/collections/{collection.slug}
+				</a>
+			</div>
+		</div>
+	</div>
+</AdminLayout>
+
+<style>
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0;
+		color: #495057;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		text-decoration: none;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:hover {
+		background: #0056b3;
+	}
+
+	.btn-primary {
+		background: #007bff;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline:hover {
+		background: #007bff;
+		color: white;
+	}
+
+	.btn-danger {
+		background: #dc3545;
+	}
+
+	.btn-danger:hover {
+		background: #c82333;
+	}
+
+	.admin-form {
+		background: white;
+		padding: 2rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		margin-bottom: 2rem;
+	}
+
+	.form-group {
+		margin-bottom: 1.5rem;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+		color: #495057;
+	}
+
+	.form-group input,
+	.form-group textarea {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #ced4da;
+		border-radius: 4px;
+		font-size: 1rem;
+		transition: border-color 0.2s;
+	}
+
+	.form-group input:focus,
+	.form-group textarea:focus {
+		outline: none;
+		border-color: #007bff;
+		box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+	}
+
+	.form-group input.error,
+	.form-group textarea.error {
+		border-color: #dc3545;
+	}
+
+	.form-group small {
+		display: block;
+		margin-top: 0.25rem;
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+
+	.error-text {
+		color: #dc3545;
+		font-size: 0.875rem;
+		margin-top: 0.25rem;
+		display: block;
+	}
+
+	.alert {
+		padding: 1rem;
+		border-radius: 4px;
+		margin-bottom: 1.5rem;
+	}
+
+	.alert-error {
+		background: #f8d7da;
+		color: #721c24;
+		border: 1px solid #f5c6cb;
+	}
+
+	.form-actions {
+		display: flex;
+		gap: 1rem;
+		margin-top: 2rem;
+		padding-top: 1rem;
+		border-top: 1px solid #dee2e6;
+	}
+
+	.collection-info {
+		background: #f8f9fa;
+		padding: 1.5rem;
+		border-radius: 8px;
+		border-left: 4px solid #28a745;
+	}
+
+	.collection-info h3 {
+		margin-top: 0;
+		color: #495057;
+	}
+
+	.stats-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: 1rem;
+	}
+
+	.stat {
+		color: #6c757d;
+	}
+
+	.stat strong {
+		color: #495057;
+	}
+
+	.stat a {
+		color: #007bff;
+		text-decoration: none;
+	}
+
+	.stat a:hover {
+		text-decoration: underline;
+	}
+
+	code {
+		background: #e9ecef;
+		padding: 0.2rem 0.4rem;
+		border-radius: 3px;
+		font-size: 0.875rem;
+	}
+
+	@media (max-width: 768px) {
+		.page-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 1rem;
+		}
+
+		.header-actions {
+			flex-wrap: wrap;
+		}
+
+		.form-actions {
+			flex-direction: column;
+		}
+	}
+</style>
+
+<script>
+	function deleteCollection(id, name) {
+		if (confirm(`Are you sure you want to delete the collection "${name}"? This will also delete all associated coins and images.`)) {
+			fetch(`/admin/api/collections/${id}`, {
+				method: 'DELETE',
+			})
+			.then(response => {
+				if (response.ok) {
+					window.location.href = '/admin/collections';
+				} else {
+					alert('Error deleting collection');
+				}
+			})
+			.catch(error => {
+				alert('Error deleting collection');
+			});
+		}
+	}
+
+	// Auto-generate slug from name
+	document.getElementById('name').addEventListener('input', function(e) {
+		const slug = e.target.value
+			.toLowerCase()
+			.replace(/[^a-z0-9\s-]/g, '')
+			.replace(/\s+/g, '-')
+			.replace(/-+/g, '-')
+			.trim();
+		document.getElementById('slug').value = slug;
+	});
+</script>

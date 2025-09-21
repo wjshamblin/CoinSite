@@ -1,0 +1,343 @@
+---
+export interface Props {
+	coins: Array<{
+		image: string;
+		title: string;
+		description: string;
+		collection?: string;
+	}>;
+}
+
+const { coins } = Astro.props;
+---
+
+<div class="slideshow-container">
+	<div class="slideshow-wrapper">
+		{coins.map((coin, index) => (
+			<div class={`slide ${index === 0 ? 'active' : ''}`} data-slide={index}>
+				<div class="slide-content">
+					<div class="slide-image">
+						<img src={`/images/coins/${coin.image}`} alt={coin.title} loading="lazy" />
+					</div>
+					<div class="slide-info">
+						<h3>{coin.title}</h3>
+						<p class="description">{coin.description}</p>
+						{coin.collection && (
+							<p class="collection">From: {coin.collection}</p>
+						)}
+					</div>
+				</div>
+			</div>
+		))}
+	</div>
+
+	<!-- Navigation dots -->
+	<div class="dots-container">
+		{coins.map((_, index) => (
+			<button
+				class={`dot ${index === 0 ? 'active' : ''}`}
+				onclick={`goToSlide(${index})`}
+				aria-label={`Go to slide ${index + 1}`}
+			></button>
+		))}
+	</div>
+
+	<!-- Navigation arrows -->
+	<button class="nav-arrow nav-prev" onclick="previousSlide()" aria-label="Previous slide">
+		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<polyline points="15,18 9,12 15,6"></polyline>
+		</svg>
+	</button>
+	<button class="nav-arrow nav-next" onclick="nextSlide()" aria-label="Next slide">
+		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<polyline points="9,18 15,12 9,6"></polyline>
+		</svg>
+	</button>
+</div>
+
+<style>
+	.slideshow-container {
+		position: relative;
+		max-width: 1000px;
+		margin: 0 auto 3rem auto;
+		background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+		border-radius: 16px;
+		overflow: hidden;
+		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+	}
+
+	.slideshow-wrapper {
+		position: relative;
+		height: 500px;
+		overflow: hidden;
+	}
+
+	.slide {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		opacity: 0;
+		transform: translateX(100%);
+		transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+		display: flex;
+		align-items: center;
+	}
+
+	.slide.active {
+		opacity: 1;
+		transform: translateX(0);
+	}
+
+	.slide.prev {
+		transform: translateX(-100%);
+	}
+
+	.slide-content {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 3rem;
+		width: 100%;
+		padding: 2rem 3rem;
+		align-items: center;
+	}
+
+	.slide-image {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.slide-image img {
+		max-width: 100%;
+		max-height: 350px;
+		width: auto;
+		height: auto;
+		object-fit: contain;
+		border-radius: 12px;
+		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+		transition: transform 0.3s ease;
+	}
+
+	.slide-image:hover img {
+		transform: scale(1.05);
+	}
+
+	.slide-info {
+		padding: 1rem 0;
+	}
+
+	.slide-info h3 {
+		font-size: 2rem;
+		color: #2c3e50;
+		margin-bottom: 1rem;
+		font-weight: 700;
+		line-height: 1.2;
+	}
+
+	.description {
+		font-size: 1.1rem;
+		color: #6c757d;
+		line-height: 1.6;
+		margin-bottom: 1rem;
+	}
+
+	.collection {
+		font-size: 0.9rem;
+		color: #007bff;
+		font-weight: 600;
+		margin: 0;
+	}
+
+	/* Navigation Arrows */
+	.nav-arrow {
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		background: rgba(255, 255, 255, 0.9);
+		border: none;
+		width: 50px;
+		height: 50px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		z-index: 10;
+		color: #495057;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	}
+
+	.nav-arrow:hover {
+		background: white;
+		transform: translateY(-50%) scale(1.1);
+		color: #007bff;
+	}
+
+	.nav-prev {
+		left: 20px;
+	}
+
+	.nav-next {
+		right: 20px;
+	}
+
+	/* Navigation Dots */
+	.dots-container {
+		position: absolute;
+		bottom: 20px;
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		gap: 12px;
+		z-index: 10;
+	}
+
+	.dot {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		border: none;
+		background: rgba(255, 255, 255, 0.5);
+		cursor: pointer;
+		transition: all 0.3s ease;
+	}
+
+	.dot.active,
+	.dot:hover {
+		background: white;
+		transform: scale(1.2);
+	}
+
+	/* Responsive Design */
+	@media (max-width: 768px) {
+		.slideshow-container {
+			margin: 0 1rem 2rem 1rem;
+		}
+
+		.slideshow-wrapper {
+			height: 600px;
+		}
+
+		.slide-content {
+			grid-template-columns: 1fr;
+			gap: 1.5rem;
+			padding: 1.5rem;
+			text-align: center;
+		}
+
+		.slide-info h3 {
+			font-size: 1.5rem;
+		}
+
+		.description {
+			font-size: 1rem;
+		}
+
+		.nav-arrow {
+			width: 40px;
+			height: 40px;
+		}
+
+		.nav-prev {
+			left: 10px;
+		}
+
+		.nav-next {
+			right: 10px;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.slideshow-wrapper {
+			height: 550px;
+		}
+
+		.slide-content {
+			padding: 1rem;
+		}
+
+		.slide-info h3 {
+			font-size: 1.3rem;
+		}
+	}
+</style>
+
+<script>
+	let currentSlide = 0;
+	let slideInterval;
+	const slides = document.querySelectorAll('.slide');
+	const dots = document.querySelectorAll('.dot');
+	const totalSlides = slides.length;
+
+	window.goToSlide = function(index) {
+		// Remove active classes
+		slides[currentSlide].classList.remove('active');
+		dots[currentSlide].classList.remove('active');
+
+		// Add prev class for exit animation
+		slides[currentSlide].classList.add('prev');
+
+		currentSlide = index;
+
+		// Add active classes to new slide
+		slides[currentSlide].classList.add('active');
+		dots[currentSlide].classList.add('active');
+
+		// Remove prev class after animation
+		setTimeout(() => {
+			slides.forEach(slide => slide.classList.remove('prev'));
+		}, 600);
+
+		// Reset auto-advance
+		resetAutoAdvance();
+	}
+
+	window.nextSlide = function() {
+		const nextIndex = (currentSlide + 1) % totalSlides;
+		goToSlide(nextIndex);
+	}
+
+	window.previousSlide = function() {
+		const prevIndex = currentSlide === 0 ? totalSlides - 1 : currentSlide - 1;
+		goToSlide(prevIndex);
+	}
+
+	function autoAdvance() {
+		nextSlide();
+	}
+
+	function resetAutoAdvance() {
+		clearInterval(slideInterval);
+		slideInterval = setInterval(autoAdvance, 5000); // Auto-advance every 5 seconds
+	}
+
+	// Initialize slideshow
+	document.addEventListener('DOMContentLoaded', function() {
+		// Start auto-advance
+		resetAutoAdvance();
+
+		// Pause on hover
+		const container = document.querySelector('.slideshow-container');
+		if (container) {
+			container.addEventListener('mouseenter', () => {
+				clearInterval(slideInterval);
+			});
+
+			container.addEventListener('mouseleave', () => {
+				resetAutoAdvance();
+			});
+		}
+
+		// Keyboard navigation
+		document.addEventListener('keydown', function(e) {
+			if (e.key === 'ArrowLeft') {
+				previousSlide();
+			} else if (e.key === 'ArrowRight') {
+				nextSlide();
+			}
+		});
+	});
+</script>

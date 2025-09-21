@@ -1,0 +1,18 @@
+---
+import { getSessionFromRequest, deleteSession, createLogoutCookie } from '../../lib/auth';
+
+export const prerender = false; // Enable server-side rendering for authentication
+
+// Get current session and delete it
+const sessionToken = getSessionFromRequest(Astro.request);
+if (sessionToken) {
+  await deleteSession(sessionToken);
+}
+
+// Set logout cookie
+const logoutCookie = createLogoutCookie();
+Astro.response.headers.set('Set-Cookie', logoutCookie);
+
+// Redirect to login page
+return Astro.redirect('/admin/login');
+---

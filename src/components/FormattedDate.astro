@@ -1,17 +1,39 @@
 ---
 interface Props {
-	date: Date;
+	date?: Date | string;
 }
 
 const { date } = Astro.props;
+
+// Handle undefined or invalid dates
+let dateObj: Date | null = null;
+let isValidDate = false;
+
+if (date) {
+	// Convert string to Date if needed
+	dateObj = typeof date === 'string' ? new Date(date) : date;
+
+	// Check if date is valid
+	if (dateObj && !isNaN(dateObj.getTime())) {
+		isValidDate = true;
+	} else {
+		console.error(`FormattedDate: Invalid date provided: ${date}`);
+	}
+} else {
+	console.warn('FormattedDate: No date provided');
+}
 ---
 
-<time datetime={date.toISOString()}>
-	{
-		date.toLocaleDateString('en-us', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-		})
-	}
-</time>
+{isValidDate && dateObj ? (
+	<time datetime={dateObj.toISOString()}>
+		{
+			dateObj.toLocaleDateString('en-us', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric',
+			})
+		}
+	</time>
+) : (
+	<span class="date-error">Date unavailable</span>
+)}

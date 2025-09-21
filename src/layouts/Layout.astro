@@ -1,0 +1,54 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+
+export const prerender = false; // Disable prerendering for authentication
+
+export interface Props {
+	title: string;
+	description?: string;
+}
+
+const { title, description = 'Explore our comprehensive coin collections' } = Astro.props;
+---
+
+<html lang="en">
+	<head>
+		<BaseHead title={title} description={description} />
+		<style>
+			main {
+				width: calc(100% - 2em);
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 2em 1em;
+			}
+
+			h1 {
+				color: rgb(var(--gray-dark));
+				font-size: 2.5rem;
+				margin-bottom: 1rem;
+			}
+
+			h2 {
+				color: rgb(var(--gray-dark));
+				font-size: 1.8rem;
+				margin-bottom: 0.8rem;
+			}
+
+			h3 {
+				color: rgb(var(--gray-dark));
+				font-size: 1.4rem;
+				margin-bottom: 0.6rem;
+			}
+		</style>
+	</head>
+
+	<body>
+		<Header />
+		<main>
+			<slot />
+		</main>
+		<Footer />
+	</body>
+</html>

@@ -1,6 +1,11 @@
 ---
 import { SITE_TITLE } from '../consts';
 import HeaderLink from './HeaderLink.astro';
+import { checkAuth } from '../lib/authMiddleware';
+
+// Check if user is authenticated (don't redirect, just check)
+const user = await checkAuth(Astro);
+const isAuthenticated = !!user;
 ---
 
 <header>
@@ -8,8 +13,11 @@ import HeaderLink from './HeaderLink.astro';
 		<h2><a href="/">{SITE_TITLE}</a></h2>
 		<div class="internal-links">
 			<HeaderLink href="/">Home</HeaderLink>
+			<HeaderLink href="/collections">Collections</HeaderLink>
 			<HeaderLink href="/blog">Blog</HeaderLink>
 			<HeaderLink href="/about">About</HeaderLink>
+			{isAuthenticated && <HeaderLink href="/admin">Admin</HeaderLink>}
+			{isAuthenticated && <HeaderLink href="/admin/logout">Logout</HeaderLink>}
 		</div>
 		<div class="social-links">
 			<a href="https://m.webtoo.ls/@astro" target="_blank">

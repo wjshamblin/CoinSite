@@ -1,0 +1,655 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+export const prerender = false; // Enable server-side rendering for authentication
+
+import { db, Collections, Coins, Images, eq } from 'astro:db';
+import { requireAuth } from '../../../../lib/authMiddleware';
+
+// Check authentication
+const user = await requireAuth(Astro);
+
+const id = parseInt(Astro.params.id);
+
+// Get existing coin with its collection
+const coin = await db.select().from(Coins).where(eq(Coins.id, id)).then(rows => rows[0]);
+
+if (!coin) {
+	return Astro.redirect('/admin/coins');
+}
+
+// Get all collections for the dropdown
+const collections = await db.select().from(Collections).orderBy(Collections.name);
+
+// Get existing images for this coin
+const coinImages = await db.select().from(Images).where(eq(Images.coinId, id)).orderBy(Images.sortOrder);
+
+const errors = {};
+let formData = {
+	name: coin.name,
+	slug: coin.slug,
+	description: coin.description || '',
+	collectionId: coin.collectionId.toString(),
+	year: coin.year?.toString() || '',
+	mintage: coin.mintage || '',
+	condition: coin.condition || '',
+	primaryImage: coin.primaryImage
+};
+
+if (Astro.request.method === 'POST') {
+	try {
+		const data = await Astro.request.formData();
+		const action = data.get('action') as string;
+
+		if (action === 'updateCoin') {
+			formData = {
+				name: data.get('name') as string,
+				slug: data.get('slug') as string,
+				description: data.get('description') as string,
+				collectionId: data.get('collectionId') as string,
+				year: data.get('year') as string,
+				mintage: data.get('mintage') as string,
+				condition: data.get('condition') as string,
+				primaryImage: data.get('primaryImage') as string
+			};
+
+			// Basic validation
+			if (!formData.name) errors.name = 'Name is required';
+			if (!formData.slug) errors.slug = 'Slug is required';
+			if (!formData.collectionId) errors.collectionId = 'Collection is required';
+			if (!formData.primaryImage) errors.primaryImage = 'Primary image filename is required';
+
+			// If no errors, update in database
+			if (Object.keys(errors).length === 0) {
+				await db.update(Coins).set({
+					name: formData.name,
+					slug: formData.slug,
+					description: formData.description,
+					collectionId: parseInt(formData.collectionId),
+					year: formData.year ? parseInt(formData.year) : null,
+					mintage: formData.mintage || null,
+					condition: formData.condition || null,
+					primaryImage: formData.primaryImage
+				}).where(eq(Coins.id, id));
+
+				return Astro.redirect('/admin/coins');
+			}
+		} else if (action === 'addImage') {
+			const filename = data.get('filename') as string;
+			const title = data.get('title') as string;
+			const alt = data.get('alt') as string;
+			const description = data.get('imageDescription') as string;
+			const sortOrder = data.get('sortOrder') as string;
+
+			if (filename && title) {
+				await db.insert(Images).values({
+					coinId: id,
+					filename: filename,
+					title: title,
+					alt: alt || title,
+					description: description || null,
+					isPrimary: false,
+					sortOrder: parseInt(sortOrder) || 1
+				});
+
+				return Astro.redirect(`/admin/coins/edit/${id}`);
+			}
+		} else if (action === 'deleteImage') {
+			const imageId = parseInt(data.get('imageId') as string);
+			await db.delete(Images).where(eq(Images.id, imageId));
+			return Astro.redirect(`/admin/coins/edit/${id}`);
+		}
+	} catch (error) {
+		console.error('Error processing form:', error);
+		errors.general = 'An error occurred while processing your request';
+	}
+}
+---
+
+<AdminLayout title={`Edit Coin: ${coin.name}`}>
+	<div class="page-header">
+		<h1>Edit Coin: {coin.name}</h1>
+		<div class="header-actions">
+			<a href="/admin/coins" class="btn btn-outline">← Back to Coins</a>
+			<a href={`/collections/${collections.find(c => c.id === coin.collectionId)?.slug}/${coin.slug}`}
+			   target="_blank" class="btn btn-outline">👁️ View Live</a>
+		</div>
+	</div>
+
+	{Object.keys(errors).length > 0 && (
+		<div class="alert alert-error">
+			<ul>
+				{Object.values(errors).map((error) => <li>{error}</li>)}
+			</ul>
+		</div>
+	)}
+
+	<div class="edit-sections">
+		<!-- Coin Details Section -->
+		<section class="edit-section">
+			<h2>Coin Details</h2>
+			<form method="POST" class="form">
+				<input type="hidden" name="action" value="updateCoin">
+
+				<div class="form-group">
+					<label for="name">Name *</label>
+					<input
+						type="text"
+						id="name"
+						name="name"
+						value={formData.name}
+						required
+						class={errors.name ? 'error' : ''}
+					>
+					{errors.name && <span class="error-text">{errors.name}</span>}
+				</div>
+
+				<div class="form-group">
+					<label for="slug">Slug *</label>
+					<input
+						type="text"
+						id="slug"
+						name="slug"
+						value={formData.slug}
+						required
+						class={errors.slug ? 'error' : ''}
+					>
+					{errors.slug && <span class="error-text">{errors.slug}</span>}
+				</div>
+
+				<div class="form-group">
+					<label for="collectionId">Collection *</label>
+					<select
+						id="collectionId"
+						name="collectionId"
+						required
+						class={errors.collectionId ? 'error' : ''}
+					>
+						<option value="">Select a collection</option>
+						{collections.map((collection) => (
+							<option
+								value={collection.id.toString()}
+								selected={formData.collectionId === collection.id.toString()}
+							>
+								{collection.name}
+							</option>
+						))}
+					</select>
+					{errors.collectionId && <span class="error-text">{errors.collectionId}</span>}
+				</div>
+
+				<div class="form-group">
+					<label for="description">Description</label>
+					<textarea
+						id="description"
+						name="description"
+						rows="4"
+					>{formData.description}</textarea>
+				</div>
+
+				<div class="form-row">
+					<div class="form-group">
+						<label for="year">Year</label>
+						<input
+							type="number"
+							id="year"
+							name="year"
+							value={formData.year}
+						>
+					</div>
+
+					<div class="form-group">
+						<label for="condition">Condition</label>
+						<input
+							type="text"
+							id="condition"
+							name="condition"
+							value={formData.condition}
+							placeholder="e.g., XF, AU, MS-63"
+						>
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label for="mintage">Mintage</label>
+					<input
+						type="text"
+						id="mintage"
+						name="mintage"
+						value={formData.mintage}
+						placeholder="e.g., 1,000,000"
+					>
+				</div>
+
+				<div class="form-group">
+					<label for="primaryImage">Primary Image Filename *
+						<small>(from /images/coins/ folder)</small>
+					</label>
+					<input
+						type="text"
+						id="primaryImage"
+						name="primaryImage"
+						value={formData.primaryImage}
+						required
+						class={errors.primaryImage ? 'error' : ''}
+						placeholder="e.g., coin-image.jpg"
+					>
+					{errors.primaryImage && <span class="error-text">{errors.primaryImage}</span>}
+				</div>
+
+				<button type="submit" class="btn btn-primary">Update Coin</button>
+			</form>
+		</section>
+
+		<!-- Coin Images Section -->
+		<section class="edit-section">
+			<h2>Coin Images ({coinImages.length})</h2>
+			<p class="section-description">
+				Add up to 5 detailed images for this coin. Each image needs a title that will be displayed on the coin page.
+			</p>
+
+			<!-- Add New Image Form -->
+			<div class="add-image-form">
+				<h3>Add New Image</h3>
+				<form method="POST" class="form compact-form">
+					<input type="hidden" name="action" value="addImage">
+
+					<div class="form-row">
+						<div class="form-group">
+							<label for="filename">Image Filename *</label>
+							<input
+								type="text"
+								id="filename"
+								name="filename"
+								required
+								placeholder="e.g., coin-obverse.jpg"
+							>
+							<small>Image must exist in /images/coins/ folder</small>
+						</div>
+
+						<div class="form-group">
+							<label for="title">Image Title *</label>
+							<input
+								type="text"
+								id="title"
+								name="title"
+								required
+								placeholder="e.g., Obverse, Reverse, Edge"
+							>
+						</div>
+					</div>
+
+					<div class="form-row">
+						<div class="form-group">
+							<label for="alt">Alt Text</label>
+							<input
+								type="text"
+								id="alt"
+								name="alt"
+								placeholder="Accessibility description"
+							>
+						</div>
+
+						<div class="form-group">
+							<label for="sortOrder">Sort Order</label>
+							<input
+								type="number"
+								id="sortOrder"
+								name="sortOrder"
+								value={coinImages.length + 1}
+								min="1"
+							>
+						</div>
+					</div>
+
+					<div class="form-group">
+						<label for="imageDescription">Description</label>
+						<textarea
+							id="imageDescription"
+							name="imageDescription"
+							rows="2"
+							placeholder="Optional detailed description"
+						></textarea>
+					</div>
+
+					<button type="submit" class="btn btn-primary">Add Image</button>
+				</form>
+			</div>
+
+			<!-- Existing Images -->
+			{coinImages.length > 0 ? (
+				<div class="existing-images">
+					<h3>Current Images</h3>
+					<div class="images-grid">
+						{coinImages.map((image) => (
+							<div class="image-card">
+								<div class="image-preview">
+									<img
+										src={`/images/coins/${image.filename}`}
+										alt={image.alt}
+										loading="lazy"
+									>
+								</div>
+								<div class="image-info">
+									<h4>{image.title}</h4>
+									<p class="filename">{image.filename}</p>
+									{image.description && (
+										<p class="description">{image.description}</p>
+									)}
+									<div class="image-meta">
+										<span class="sort-order">Order: {image.sortOrder}</span>
+										{image.isPrimary && <span class="primary-badge">Primary</span>}
+									</div>
+									<form method="POST" class="delete-form">
+										<input type="hidden" name="action" value="deleteImage">
+										<input type="hidden" name="imageId" value={image.id}>
+										<button
+											type="submit"
+											class="btn btn-sm btn-danger"
+											onclick="return confirm('Are you sure you want to delete this image?')"
+										>
+											Delete
+										</button>
+									</form>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			) : (
+				<div class="empty-state">
+					<p>No additional images added yet. Add images above to display on the coin page.</p>
+				</div>
+			)}
+		</section>
+	</div>
+</AdminLayout>
+
+<style>
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0;
+		color: #495057;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		text-decoration: none;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:hover {
+		background: #0056b3;
+	}
+
+	.btn-primary {
+		background: #007bff;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline:hover {
+		background: #007bff;
+		color: white;
+	}
+
+	.btn-sm {
+		padding: 0.25rem 0.5rem;
+		font-size: 0.8rem;
+	}
+
+	.btn-danger {
+		background: #dc3545;
+	}
+
+	.btn-danger:hover {
+		background: #c82333;
+	}
+
+	.alert {
+		padding: 1rem;
+		margin-bottom: 1.5rem;
+		border-radius: 4px;
+	}
+
+	.alert-error {
+		background: #f8d7da;
+		color: #721c24;
+		border: 1px solid #f5c6cb;
+	}
+
+	.alert ul {
+		margin: 0;
+		padding-left: 1.5rem;
+	}
+
+	.edit-sections {
+		display: flex;
+		flex-direction: column;
+		gap: 2rem;
+	}
+
+	.edit-section {
+		background: white;
+		padding: 2rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	}
+
+	.edit-section h2 {
+		margin-top: 0;
+		color: #495057;
+		border-bottom: 1px solid #dee2e6;
+		padding-bottom: 0.5rem;
+	}
+
+	.section-description {
+		color: #6c757d;
+		margin-bottom: 1.5rem;
+		font-size: 0.9rem;
+	}
+
+	.form {
+		max-width: 100%;
+	}
+
+	.form-group {
+		margin-bottom: 1.5rem;
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		color: #495057;
+		font-weight: 500;
+	}
+
+	.form-group label small {
+		font-weight: normal;
+		color: #6c757d;
+		font-size: 0.8rem;
+	}
+
+	.form-group input,
+	.form-group select,
+	.form-group textarea {
+		width: 100%;
+		padding: 0.5rem;
+		border: 1px solid #ced4da;
+		border-radius: 4px;
+		font-size: 0.9rem;
+		box-sizing: border-box;
+	}
+
+	.form-group input:focus,
+	.form-group select:focus,
+	.form-group textarea:focus {
+		outline: none;
+		border-color: #007bff;
+		box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+	}
+
+	.form-group input.error,
+	.form-group select.error {
+		border-color: #dc3545;
+	}
+
+	.form-group small {
+		display: block;
+		margin-top: 0.25rem;
+		color: #6c757d;
+		font-size: 0.8rem;
+	}
+
+	.error-text {
+		color: #dc3545;
+		font-size: 0.8rem;
+		margin-top: 0.25rem;
+		display: block;
+	}
+
+	.add-image-form {
+		background: #f8f9fa;
+		padding: 1.5rem;
+		border-radius: 8px;
+		margin-bottom: 2rem;
+	}
+
+	.add-image-form h3 {
+		margin-top: 0;
+		color: #495057;
+	}
+
+	.compact-form .form-group {
+		margin-bottom: 1rem;
+	}
+
+	.existing-images h3 {
+		margin-bottom: 1rem;
+		color: #495057;
+	}
+
+	.images-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+		gap: 1.5rem;
+	}
+
+	.image-card {
+		border: 1px solid #dee2e6;
+		border-radius: 8px;
+		overflow: hidden;
+		background: white;
+	}
+
+	.image-preview {
+		height: 200px;
+		overflow: hidden;
+	}
+
+	.image-preview img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.image-info {
+		padding: 1rem;
+	}
+
+	.image-info h4 {
+		margin: 0 0 0.5rem 0;
+		color: #495057;
+	}
+
+	.filename {
+		font-family: monospace;
+		background: #f8f9fa;
+		padding: 0.25rem 0.5rem;
+		border-radius: 3px;
+		font-size: 0.8rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.description {
+		color: #6c757d;
+		font-size: 0.9rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.image-meta {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1rem;
+		font-size: 0.8rem;
+		color: #6c757d;
+	}
+
+	.primary-badge {
+		background: #28a745;
+		color: white;
+		padding: 0.2rem 0.4rem;
+		border-radius: 3px;
+		font-size: 0.7rem;
+		font-weight: bold;
+	}
+
+	.delete-form {
+		margin: 0;
+	}
+
+	.empty-state {
+		text-align: center;
+		padding: 2rem;
+		color: #6c757d;
+		background: #f8f9fa;
+		border-radius: 8px;
+		border: 2px dashed #dee2e6;
+	}
+
+	@media (max-width: 768px) {
+		.page-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 1rem;
+		}
+
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+
+		.images-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
