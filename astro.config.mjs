@@ -6,12 +6,12 @@ import node from '@astrojs/node';
 import sitemap from '@astrojs/sitemap';
 import { defineConfig } from 'astro/config';
 
+import vercel from '@astrojs/vercel';
+
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://example.com',
-	output: 'server', // Enable server-side rendering for admin authentication
-	adapter: node({
-		mode: 'standalone'
-	}),
-	integrations: [db(), mdx(), sitemap()],
+    site: 'https://example.com',
+    output: 'server', // Enable server-side rendering for admin authentication
+    adapter: vercel(),
+    integrations: [db(), mdx(), sitemap()],
 });
