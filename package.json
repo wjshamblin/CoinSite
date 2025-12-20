@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
-    "build": "ASTRO_DATABASE_FILE=./db.sqlite astro build",
-    "build:remote": "astro build --remote",
+    "build": "astro build",
+    "build:local": "ASTRO_DATABASE_FILE=./db.sqlite astro build",
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
     "astro": "astro"

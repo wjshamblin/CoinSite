@@ -14,4 +14,5 @@ export default defineConfig({
     output: 'server', // Enable server-side rendering for admin authentication
     adapter: vercel(),
     integrations: [db(), mdx(), sitemap()],
+    base: process.env.NODE_ENV === 'production' ? '/' : '/',
 });
