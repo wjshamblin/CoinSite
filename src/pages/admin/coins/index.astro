@@ -1,12 +1,14 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { db, Collections, Coins, eq } from 'astro:db';
-import { requireAuth } from '../../../lib/authMiddleware';
+import { requireAuth, isRedirect } from '../../../lib/authMiddleware';
 
 export const prerender = false; // Enable server-side rendering for authentication
 
 // Check authentication
-const user = await requireAuth(Astro);
+const authResult = await requireAuth(Astro);
+if (isRedirect(authResult)) return authResult;
+const user = authResult;
 
 const coins = await db
 	.select({

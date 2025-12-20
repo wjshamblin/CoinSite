@@ -4,10 +4,12 @@ export const prerender = false; // Enable server-side rendering for authenticati
 
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { requireAuth } from '../../../lib/authMiddleware';
+import { requireAuth, isRedirect } from '../../../lib/authMiddleware';
 
 // Check authentication
-const user = await requireAuth(Astro);
+const authResult = await requireAuth(Astro);
+if (isRedirect(authResult)) return authResult;
+const user = authResult;
 
 const errors = {};
 let formData = {
