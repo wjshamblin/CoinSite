@@ -135,3 +135,92 @@ export function createSessionCookie(sessionToken: string): string {
 export function createLogoutCookie(): string {
   return 'admin_session=; Path=/; HttpOnly; SameSite=Strict; Secure; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
 }
+
+/**
+ * Update a user's password
+ */
+export async function updatePassword(
+  userId: number,
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Get user
+    const user = await db
+      .select()
+      .from(AdminUsers)
+      .where(eq(AdminUsers.id, userId))
+      .then(rows => rows[0]);
+
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Verify current password
+    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValid) {
+      authLogger.warn('Invalid current password during password change', { userId });
+      return { success: false, error: 'Current password is incorrect' };
+    }
+
+    // Hash new password
+    const newHash = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await db
+      .update(AdminUsers)
+      .set({ passwordHash: newHash })
+      .where(eq(AdminUsers.id, userId));
+
+    authLogger.info('Password updated successfully', { userId });
+    return { success: true };
+  } catch (error) {
+    authLogger.error('Error updating password', { error: String(error), userId });
+    return { success: false, error: 'An error occurred while updating password' };
+  }
+}
+
+/**
+ * Update a user's email
+ */
+export async function updateEmail(
+  userId: number,
+  newEmail: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .update(AdminUsers)
+      .set({ email: newEmail })
+      .where(eq(AdminUsers.id, userId));
+
+    authLogger.info('Email updated successfully', { userId });
+    return { success: true };
+  } catch (error) {
+    authLogger.error('Error updating email', { error: String(error), userId });
+    return { success: false, error: 'An error occurred while updating email' };
+  }
+}
+
+/**
+ * Get user by ID
+ */
+export async function getUserById(userId: number): Promise<AuthUser | null> {
+  try {
+    const user = await db
+      .select()
+      .from(AdminUsers)
+      .where(eq(AdminUsers.id, userId))
+      .then(rows => rows[0]);
+
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+    };
+  } catch (error) {
+    authLogger.error('Error getting user by ID', { error: String(error), userId });
+    return null;
+  }
+}
