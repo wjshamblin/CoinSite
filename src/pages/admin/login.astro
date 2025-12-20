@@ -1,6 +1,7 @@
 ---
 import BaseHead from '../../components/BaseHead.astro';
 import { verifyPassword, createSession, createSessionCookie, getSessionFromRequest, getSessionUser } from '../../lib/auth';
+import { checkRateLimit, getRateLimitHeaders, LOGIN_RATE_LIMIT } from '../../lib/rateLimit';
 
 export const prerender = false; // Enable server-side rendering for authentication
 
@@ -17,36 +18,49 @@ let error = '';
 let username = '';
 
 if (Astro.request.method === 'POST') {
-  try {
-    const formData = await Astro.request.formData();
-    username = formData.get('username') as string;
-    const password = formData.get('password') as string;
+  // Get client IP for rate limiting
+  const clientIP = Astro.request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || Astro.request.headers.get('x-real-ip')
+    || 'unknown';
 
-    if (!username || !password) {
-      error = 'Please enter both username and password';
-    } else {
-      const user = await verifyPassword(username, password);
+  // Check rate limit
+  const rateLimitResult = checkRateLimit(clientIP, LOGIN_RATE_LIMIT);
 
-      if (user) {
-        // Create session and set cookie
-        const sessionToken = await createSession(user.id);
-        const cookie = createSessionCookie(sessionToken);
+  if (!rateLimitResult.allowed) {
+    const resetMinutes = Math.ceil((rateLimitResult.resetTime - Date.now()) / 60000);
+    error = `Too many login attempts. Please try again in ${resetMinutes} minute${resetMinutes !== 1 ? 's' : ''}.`;
+  } else {
+    try {
+      const formData = await Astro.request.formData();
+      username = formData.get('username') as string;
+      const password = formData.get('password') as string;
 
-        // Return redirect with cookie header (Astro.redirect() creates new Response without our headers)
-        return new Response(null, {
-          status: 302,
-          headers: {
-            'Location': '/admin',
-            'Set-Cookie': cookie
-          }
-        });
+      if (!username || !password) {
+        error = 'Please enter both username and password';
       } else {
-        error = 'Invalid username or password';
+        const user = await verifyPassword(username, password);
+
+        if (user) {
+          // Create session and set cookie
+          const sessionToken = await createSession(user.id);
+          const cookie = createSessionCookie(sessionToken);
+
+          // Return redirect with cookie header (Astro.redirect() creates new Response without our headers)
+          return new Response(null, {
+            status: 302,
+            headers: {
+              'Location': '/admin',
+              'Set-Cookie': cookie
+            }
+          });
+        } else {
+          error = 'Invalid username or password';
+        }
       }
+    } catch (err) {
+      console.error('Login error:', err);
+      error = 'An error occurred during login';
     }
-  } catch (err) {
-    console.error('Login error:', err);
-    error = 'An error occurred during login';
   }
 }
 ---
