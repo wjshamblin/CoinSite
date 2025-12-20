@@ -1,0 +1,96 @@
+---
+interface Props {
+  id: string;
+  name: string;
+  label: string;
+  value?: string;
+  placeholder?: string;
+  rows?: number;
+  required?: boolean;
+  error?: string;
+  hint?: string;
+}
+
+const {
+  id,
+  name,
+  label,
+  value = '',
+  placeholder,
+  rows = 4,
+  required = false,
+  error,
+  hint
+} = Astro.props;
+---
+
+<div class="form-group">
+  <label for={id}>
+    {label}
+    {required && <span class="required">*</span>}
+  </label>
+  <textarea
+    id={id}
+    name={name}
+    placeholder={placeholder}
+    rows={rows}
+    required={required}
+    class:list={[{ error: !!error }]}
+  >{value}</textarea>
+  {hint && <small class="hint">{hint}</small>}
+  {error && <span class="error-text">{error}</span>}
+</div>
+
+<style>
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #495057;
+  }
+
+  .required {
+    color: #dc3545;
+    margin-left: 0.25rem;
+  }
+
+  textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+
+  textarea.error {
+    border-color: #dc3545;
+  }
+
+  .hint {
+    display: block;
+    margin-top: 0.25rem;
+    color: #6c757d;
+    font-size: 0.875rem;
+  }
+
+  .error-text {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+  }
+</style>

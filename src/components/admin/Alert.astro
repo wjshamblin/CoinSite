@@ -1,0 +1,45 @@
+---
+interface Props {
+  type?: 'error' | 'success' | 'warning' | 'info';
+  message: string;
+}
+
+const { type = 'info', message } = Astro.props;
+---
+
+<div class:list={['alert', `alert-${type}`]}>
+  {message}
+</div>
+
+<style>
+  .alert {
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  .alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+
+  .alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  .alert-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+  }
+
+  .alert-info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+  }
+</style>
