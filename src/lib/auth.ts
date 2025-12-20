@@ -1,6 +1,7 @@
 import { db, AdminUsers, AdminSessions, eq, lt } from 'astro:db';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
+import { authLogger } from './logger';
 
 export interface AuthUser {
   id: number;
@@ -37,7 +38,7 @@ export async function verifyPassword(username: string, password: string): Promis
       email: user.email,
     };
   } catch (error) {
-    console.error('Error verifying password:', error);
+    authLogger.error('Error verifying password', { error: String(error), username });
     return null;
   }
 }
@@ -92,7 +93,7 @@ export async function getSessionUser(sessionToken: string): Promise<AuthUser | n
       email: session.user.email,
     };
   } catch (error) {
-    console.error('Error getting session user:', error);
+    authLogger.error('Error getting session user', { error: String(error) });
     return null;
   }
 }
@@ -101,7 +102,7 @@ export async function deleteSession(sessionToken: string): Promise<void> {
   try {
     await db.delete(AdminSessions).where(eq(AdminSessions.id, sessionToken));
   } catch (error) {
-    console.error('Error deleting session:', error);
+    authLogger.error('Error deleting session', { error: String(error) });
   }
 }
 
@@ -109,8 +110,9 @@ export async function cleanExpiredSessions(): Promise<void> {
   try {
     const now = new Date();
     await db.delete(AdminSessions).where(lt(AdminSessions.expiresAt, now));
+    authLogger.debug('Cleaned expired sessions');
   } catch (error) {
-    console.error('Error cleaning expired sessions:', error);
+    authLogger.error('Error cleaning expired sessions', { error: String(error) });
   }
 }
 
