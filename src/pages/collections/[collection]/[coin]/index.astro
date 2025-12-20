@@ -42,179 +42,459 @@ const images = await db
 ---
 
 <Layout title={`${coin.name} - ${collection.name}`}>
-	<main>
-		<nav class="breadcrumb">
-			<a href="/collections">Collections</a> /
-			<a href={`/collections/${collection.slug}`}>{collection.name}</a> /
-			<span>{coin.name}</span>
-		</nav>
+	<!-- Breadcrumb -->
+	<nav class="breadcrumb" aria-label="Breadcrumb">
+		<a href="/collections">Collections</a>
+		<span class="separator">/</span>
+		<a href={`/collections/${collection.slug}`}>{collection.name}</a>
+		<span class="separator">/</span>
+		<span class="current">{coin.name}</span>
+	</nav>
 
-		<div class="coin-header">
+	<!-- Coin Header -->
+	<header class="coin-header">
+		<div class="coin-title-section">
 			<h1>{coin.name}</h1>
-			{coin.year && <p class="coin-year">Year: {coin.year}</p>}
-			{coin.condition && <p class="coin-detail">Condition: {coin.condition}</p>}
-			{coin.mintage && <p class="coin-detail">Mintage: {coin.mintage}</p>}
-		</div>
-
-		{coin.description && (
-			<div class="coin-description">
-				<p>{coin.description}</p>
+			<div class="coin-meta">
+				{coin.year && <span class="meta-item"><strong>Year:</strong> {coin.year}</span>}
+				{coin.condition && <span class="meta-item"><strong>Condition:</strong> {coin.condition}</span>}
+				{coin.mintage && <span class="meta-item"><strong>Mintage:</strong> {coin.mintage}</span>}
 			</div>
-		)}
+		</div>
+	</header>
 
+	<!-- Description -->
+	{coin.description && (
+		<section class="coin-description">
+			<p>{coin.description}</p>
+		</section>
+	)}
+
+	<!-- Image Gallery -->
+	<section class="gallery-section">
+		<h2>Gallery</h2>
 		<div class="images-gallery">
-			{images.map((image, index) => (
-				<div class="image-container">
-					<Image
-						src={`/images/coins/${image.filename}`}
-						alt={image.alt}
-						width={400}
-						height={300}
-						class="coin-image"
-						loading="lazy"
-					/>
-					<div class="image-info">
-						<h3 class="image-title">{image.title}</h3>
-						{image.description && (
-							<p class="image-description">{image.description}</p>
-						)}
+			{images.map((image) => (
+				<figure class="image-card">
+					<div class="image-wrapper">
+						<Image
+							src={`/images/coins/${image.filename}`}
+							alt={image.alt}
+							width={500}
+							height={400}
+							class="coin-image"
+							loading="lazy"
+						/>
+						<button class="zoom-btn" aria-label="Zoom image" data-image={`/images/coins/${image.filename}`}>
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<circle cx="11" cy="11" r="8"/>
+								<path d="m21 21-4.35-4.35"/>
+								<path d="M11 8v6M8 11h6"/>
+							</svg>
+						</button>
 					</div>
-				</div>
+					<figcaption>
+						<h3>{image.title}</h3>
+						{image.description && <p>{image.description}</p>}
+					</figcaption>
+				</figure>
 			))}
 		</div>
+	</section>
 
-		<div class="coin-metadata">
-			<h3>Coin Details</h3>
-			<dl class="details-grid">
+	<!-- Coin Details -->
+	<section class="details-section">
+		<h2>Coin Details</h2>
+		<div class="details-grid">
+			<dl class="details-list">
 				{coin.year && (
-					<>
+					<div class="detail-item">
 						<dt>Year</dt>
 						<dd>{coin.year}</dd>
-					</>
+					</div>
 				)}
 				{coin.condition && (
-					<>
+					<div class="detail-item">
 						<dt>Condition</dt>
 						<dd>{coin.condition}</dd>
-					</>
+					</div>
 				)}
 				{coin.mintage && (
-					<>
+					<div class="detail-item">
 						<dt>Mintage</dt>
 						<dd>{coin.mintage}</dd>
-					</>
+					</div>
 				)}
+				<div class="detail-item">
+					<dt>Collection</dt>
+					<dd><a href={`/collections/${collection.slug}`}>{collection.name}</a></dd>
+				</div>
 			</dl>
 		</div>
-	</main>
+	</section>
+
+	<!-- Back Navigation -->
+	<nav class="back-nav">
+		<a href={`/collections/${collection.slug}`} class="back-link">
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+				<path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+			</svg>
+			Back to {collection.name}
+		</a>
+	</nav>
 </Layout>
 
+<!-- Image Lightbox -->
+<div class="lightbox" id="lightbox" aria-hidden="true">
+	<button class="lightbox-close" aria-label="Close">&times;</button>
+	<img src="" alt="" class="lightbox-image" />
+</div>
+
+<script>
+	// Lightbox functionality
+	const lightbox = document.getElementById('lightbox');
+	const lightboxImage = lightbox?.querySelector('.lightbox-image') as HTMLImageElement;
+	const closeBtn = lightbox?.querySelector('.lightbox-close');
+	const zoomBtns = document.querySelectorAll('.zoom-btn');
+
+	zoomBtns.forEach(btn => {
+		btn.addEventListener('click', () => {
+			const imageSrc = btn.getAttribute('data-image');
+			if (imageSrc && lightboxImage && lightbox) {
+				lightboxImage.src = imageSrc;
+				lightbox.classList.add('active');
+				lightbox.setAttribute('aria-hidden', 'false');
+				document.body.style.overflow = 'hidden';
+			}
+		});
+	});
+
+	closeBtn?.addEventListener('click', closeLightbox);
+	lightbox?.addEventListener('click', (e) => {
+		if (e.target === lightbox) closeLightbox();
+	});
+
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape') closeLightbox();
+	});
+
+	function closeLightbox() {
+		lightbox?.classList.remove('active');
+		lightbox?.setAttribute('aria-hidden', 'true');
+		document.body.style.overflow = '';
+	}
+</script>
+
 <style>
+	/* Breadcrumb */
 	.breadcrumb {
-		margin-bottom: 1rem;
-		font-size: 0.9rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.9375rem;
+		margin-bottom: 2rem;
+		color: rgb(var(--gray));
 	}
 
 	.breadcrumb a {
-		color: #0066cc;
+		color: var(--gold-dark);
 		text-decoration: none;
+		transition: color var(--transition-fast);
 	}
 
 	.breadcrumb a:hover {
+		color: var(--accent-dark);
 		text-decoration: underline;
 	}
 
+	.separator {
+		color: rgb(var(--gray-light));
+	}
+
+	.current {
+		color: var(--navy);
+		font-weight: 500;
+	}
+
+	/* Coin Header */
 	.coin-header {
 		margin-bottom: 2rem;
+		padding-bottom: 1.5rem;
+		border-bottom: 1px solid rgba(212, 175, 55, 0.2);
 	}
 
 	.coin-header h1 {
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.75rem;
 	}
 
-	.coin-year {
-		font-size: 1.1rem;
-		color: #666;
-		margin: 0.25rem 0;
+	.coin-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1.5rem;
 	}
 
-	.coin-detail {
-		color: #666;
-		margin: 0.25rem 0;
+	.meta-item {
+		color: rgb(var(--gray));
+		font-size: 0.9375rem;
 	}
 
+	.meta-item strong {
+		color: var(--navy);
+		font-weight: 600;
+	}
+
+	/* Description */
 	.coin-description {
-		margin-bottom: 2rem;
-		padding: 1.5rem;
-		background: #f9f9f9;
-		border-radius: 8px;
-		line-height: 1.6;
+		background: white;
+		padding: 1.75rem;
+		border-radius: 12px;
+		margin-bottom: 3rem;
+		box-shadow: var(--shadow-sm);
+		border-left: 4px solid var(--gold);
+	}
+
+	.coin-description p {
+		margin: 0;
+		color: rgb(var(--gray-dark));
+		line-height: 1.75;
+		font-size: 1.0625rem;
+	}
+
+	/* Gallery Section */
+	.gallery-section {
+		margin-bottom: 3rem;
+	}
+
+	.gallery-section h2 {
+		margin-bottom: 1.5rem;
+		font-size: 1.5rem;
 	}
 
 	.images-gallery {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 		gap: 2rem;
-		margin: 2rem 0;
 	}
 
-	.image-container {
-		border: 1px solid #ddd;
-		border-radius: 8px;
+	.image-card {
+		background: white;
+		border-radius: 12px;
 		overflow: hidden;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+		box-shadow: var(--shadow-md);
+		transition: all var(--transition-base);
+		margin: 0;
+	}
+
+	.image-card:hover {
+		transform: translateY(-4px);
+		box-shadow: var(--shadow-lg);
+	}
+
+	.image-wrapper {
+		position: relative;
+		overflow: hidden;
 	}
 
 	.coin-image {
 		width: 100%;
-		height: 300px;
+		height: 280px;
 		object-fit: cover;
 		display: block;
+		transition: transform var(--transition-slow);
 	}
 
-	.image-info {
-		padding: 1rem;
+	.image-card:hover .coin-image {
+		transform: scale(1.03);
 	}
 
-	.image-title {
+	.zoom-btn {
+		position: absolute;
+		bottom: 1rem;
+		right: 1rem;
+		width: 40px;
+		height: 40px;
+		background: rgba(255, 255, 255, 0.95);
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		opacity: 0;
+		transform: translateY(10px);
+		transition: all var(--transition-fast);
+		box-shadow: var(--shadow-md);
+		color: var(--navy);
+	}
+
+	.image-card:hover .zoom-btn {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	.zoom-btn:hover {
+		background: var(--gold);
+		color: white;
+	}
+
+	.image-card figcaption {
+		padding: 1.25rem;
+	}
+
+	.image-card h3 {
 		margin: 0 0 0.5rem 0;
-		color: #333;
-		font-size: 1.1rem;
+		font-size: 1.125rem;
+		color: var(--navy);
 	}
 
-	.image-description {
-		color: #666;
-		font-size: 0.9rem;
-		line-height: 1.4;
+	.image-card figcaption p {
+		color: rgb(var(--gray));
+		font-size: 0.875rem;
+		line-height: 1.5;
 		margin: 0;
 	}
 
-	.coin-metadata {
+	/* Details Section */
+	.details-section {
+		background: white;
+		padding: 2rem;
+		border-radius: 12px;
+		box-shadow: var(--shadow-sm);
+		margin-bottom: 2rem;
+	}
+
+	.details-section h2 {
+		margin-bottom: 1.5rem;
+		font-size: 1.5rem;
+	}
+
+	.details-list {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: 1.25rem;
+		margin: 0;
+	}
+
+	.detail-item {
+		padding: 1rem;
+		background: var(--cream);
+		border-radius: 8px;
+		border: 1px solid rgba(212, 175, 55, 0.15);
+	}
+
+	.detail-item dt {
+		font-size: 0.8125rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: rgb(var(--gray));
+		margin-bottom: 0.25rem;
+	}
+
+	.detail-item dd {
+		margin: 0;
+		font-size: 1.0625rem;
+		color: var(--navy);
+		font-weight: 500;
+	}
+
+	.detail-item dd a {
+		color: var(--gold-dark);
+	}
+
+	/* Back Navigation */
+	.back-nav {
 		margin-top: 3rem;
-		padding: 1.5rem;
-		background: #f9f9f9;
+		padding-top: 2rem;
+		border-top: 1px solid rgba(0, 0, 0, 0.08);
+	}
+
+	.back-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--gold-dark);
+		font-weight: 600;
+		text-decoration: none;
+		transition: gap var(--transition-fast);
+	}
+
+	.back-link:hover {
+		gap: 0.75rem;
+	}
+
+	/* Lightbox */
+	.lightbox {
+		position: fixed;
+		inset: 0;
+		z-index: 1000;
+		background: rgba(0, 0, 0, 0.9);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		opacity: 0;
+		visibility: hidden;
+		transition: all var(--transition-base);
+	}
+
+	.lightbox.active {
+		opacity: 1;
+		visibility: visible;
+	}
+
+	.lightbox-close {
+		position: absolute;
+		top: 1.5rem;
+		right: 1.5rem;
+		width: 48px;
+		height: 48px;
+		background: rgba(255, 255, 255, 0.1);
+		border: none;
+		border-radius: 50%;
+		color: white;
+		font-size: 2rem;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: background var(--transition-fast);
+	}
+
+	.lightbox-close:hover {
+		background: rgba(255, 255, 255, 0.2);
+	}
+
+	.lightbox-image {
+		max-width: 90vw;
+		max-height: 90vh;
+		object-fit: contain;
 		border-radius: 8px;
 	}
 
-	.coin-metadata h3 {
-		margin-top: 0;
-		color: #333;
-	}
+	/* Responsive */
+	@media (max-width: 768px) {
+		.breadcrumb {
+			font-size: 0.875rem;
+		}
 
-	.details-grid {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 0.5rem 1rem;
-		margin: 0;
-	}
+		.coin-meta {
+			gap: 1rem;
+		}
 
-	.details-grid dt {
-		font-weight: bold;
-		color: #555;
-	}
+		.images-gallery {
+			grid-template-columns: 1fr;
+			gap: 1.5rem;
+		}
 
-	.details-grid dd {
-		margin: 0;
-		color: #666;
+		.coin-image {
+			height: 220px;
+		}
+
+		.details-section {
+			padding: 1.5rem;
+		}
+
+		.details-list {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>

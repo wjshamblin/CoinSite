@@ -8,7 +8,8 @@ import { defineConfig } from 'astro/config';
 
 import vercel from '@astrojs/vercel';
 
-import tailwindcss from '@tailwindcss/vite';
+// Tailwind v4 temporarily disabled - using CSS custom properties instead
+// import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
@@ -20,8 +21,4 @@ export default defineConfig({
   adapter: vercel(),
   integrations: [db(), mdx(), sitemap()],
   base: process.env.NODE_ENV === 'production' ? '/' : '/',
-
-  vite: {
-    plugins: [tailwindcss()],
-  },
 });

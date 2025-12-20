@@ -8,64 +8,153 @@ const collections = await db.select().from(Collections);
 ---
 
 <Layout title="Coin Collections">
-	<main>
-		<h1>Coin Collections</h1>
-		<div class="collections-grid">
-			{collections.map((collection) => (
-				<a href={`/collections/${collection.slug}`} class="collection-card">
+	<div class="page-header">
+		<span class="gold-accent"></span>
+		<h1>Our Collections</h1>
+		<p class="page-description">
+			Explore our carefully curated collections spanning ancient civilizations to modern commemoratives
+		</p>
+	</div>
+
+	<div class="collections-grid">
+		{collections.map((collection) => (
+			<a href={`/collections/${collection.slug}`} class="collection-card">
+				<div class="card-image-wrapper">
 					<Image
 						src={`/images/collections/${collection.thumbnail}`}
 						alt={collection.name}
-						width={400}
-						height={200}
-						class="collection-thumbnail"
+						width={500}
+						height={320}
+						class="card-image"
 						loading="lazy"
 					/>
+					<div class="card-overlay"></div>
+				</div>
+				<div class="card-content">
 					<h2>{collection.name}</h2>
 					<p>{collection.description}</p>
-				</a>
-			))}
-		</div>
-	</main>
+					<span class="card-link">
+						Explore Collection
+						<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+							<path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+					</span>
+				</div>
+			</a>
+		))}
+	</div>
 </Layout>
 
 <style>
+	.page-header {
+		text-align: center;
+		margin-bottom: 3.5rem;
+	}
+
+	.page-header h1 {
+		margin: 1rem 0 0.75rem;
+	}
+
+	.page-description {
+		color: rgb(var(--gray));
+		font-size: 1.125rem;
+		max-width: 550px;
+		margin: 0 auto;
+	}
+
 	.collections-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-		gap: 2rem;
-		margin: 2rem 0;
+		grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+		gap: 2.5rem;
 	}
 
 	.collection-card {
+		display: block;
+		background: white;
+		border-radius: 16px;
+		overflow: hidden;
 		text-decoration: none;
-		border: 1px solid #ddd;
-		border-radius: 8px;
-		padding: 1rem;
-		transition: transform 0.2s, box-shadow 0.2s;
 		color: inherit;
+		box-shadow: var(--shadow-md);
+		transition: all var(--transition-base);
 	}
 
 	.collection-card:hover {
-		transform: translateY(-5px);
-		box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+		transform: translateY(-8px);
+		box-shadow: var(--shadow-xl);
 	}
 
-	.collection-thumbnail {
+	.card-image-wrapper {
+		position: relative;
+		overflow: hidden;
+	}
+
+	.card-image {
 		width: 100%;
-		height: 200px;
+		height: 260px;
 		object-fit: cover;
-		border-radius: 4px;
-		margin-bottom: 1rem;
+		transition: transform var(--transition-slow);
 	}
 
-	.collection-card h2 {
-		margin: 0.5rem 0;
-		color: #333;
+	.collection-card:hover .card-image {
+		transform: scale(1.05);
 	}
 
-	.collection-card p {
-		color: #666;
-		line-height: 1.4;
+	.card-overlay {
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(to top, rgba(15, 23, 42, 0.7) 0%, transparent 60%);
+		opacity: 0;
+		transition: opacity var(--transition-base);
+	}
+
+	.collection-card:hover .card-overlay {
+		opacity: 1;
+	}
+
+	.card-content {
+		padding: 1.75rem;
+	}
+
+	.card-content h2 {
+		font-size: 1.5rem;
+		margin-bottom: 0.625rem;
+		color: var(--navy);
+	}
+
+	.card-content p {
+		color: rgb(var(--gray));
+		font-size: 0.9375rem;
+		line-height: 1.65;
+		margin-bottom: 1.25rem;
+	}
+
+	.card-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--gold-dark);
+		font-size: 0.9375rem;
+		font-weight: 600;
+		transition: gap var(--transition-fast);
+	}
+
+	.collection-card:hover .card-link {
+		gap: 0.75rem;
+	}
+
+	@media (max-width: 768px) {
+		.collections-grid {
+			grid-template-columns: 1fr;
+			gap: 1.5rem;
+		}
+
+		.card-image {
+			height: 200px;
+		}
+
+		.card-content {
+			padding: 1.25rem;
+		}
 	}
 </style>
