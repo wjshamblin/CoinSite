@@ -8,11 +8,20 @@ import { defineConfig } from 'astro/config';
 
 import vercel from '@astrojs/vercel';
 
+import tailwindcss from '@tailwindcss/vite';
+
 // https://astro.build/config
 export default defineConfig({
-    site: 'https://example.com',
-    output: 'server', // Enable server-side rendering for admin authentication
-    adapter: vercel(),
-    integrations: [db(), mdx(), sitemap()],
-    base: process.env.NODE_ENV === 'production' ? '/' : '/',
+  site: 'https://example.com',
+
+  // Enable server-side rendering for admin authentication
+  output: 'server',
+
+  adapter: vercel(),
+  integrations: [db(), mdx(), sitemap()],
+  base: process.env.NODE_ENV === 'production' ? '/' : '/',
+
+  vite: {
+    plugins: [tailwindcss()],
+  },
 });
