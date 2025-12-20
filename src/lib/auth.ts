@@ -1,4 +1,4 @@
-import { db, AdminUsers, AdminSessions, eq } from 'astro:db';
+import { db, AdminUsers, AdminSessions, eq, lt } from 'astro:db';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 
@@ -108,7 +108,7 @@ export async function deleteSession(sessionToken: string): Promise<void> {
 export async function cleanExpiredSessions(): Promise<void> {
   try {
     const now = new Date();
-    await db.delete(AdminSessions).where(eq(AdminSessions.expiresAt, now));
+    await db.delete(AdminSessions).where(lt(AdminSessions.expiresAt, now));
   } catch (error) {
     console.error('Error cleaning expired sessions:', error);
   }
