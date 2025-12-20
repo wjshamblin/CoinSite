@@ -127,9 +127,9 @@ export function getSessionFromRequest(request: Request): string | null {
 export function createSessionCookie(sessionToken: string): string {
   // Create secure cookie that expires in 24 hours
   const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  return `admin_session=${sessionToken}; Path=/; HttpOnly; SameSite=Strict; Expires=${expires.toUTCString()}`;
+  return `admin_session=${sessionToken}; Path=/; HttpOnly; SameSite=Strict; Secure; Expires=${expires.toUTCString()}`;
 }
 
 export function createLogoutCookie(): string {
-  return 'admin_session=; Path=/; HttpOnly; SameSite=Strict; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  return 'admin_session=; Path=/; HttpOnly; SameSite=Strict; Secure; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
 }
