@@ -4,6 +4,7 @@ export const prerender = false; // Enable server-side rendering for authenticati
 
 import { db, Collections, Coins, Images, eq } from 'astro:db';
 import { requireAuth, isRedirect } from '../../../../lib/authMiddleware';
+import { generateCsrfToken, validateCsrfToken, getCsrfTokenFromRequest } from '../../../../lib/csrf';
 
 // Check authentication
 const authResult = await requireAuth(Astro);
@@ -36,69 +37,76 @@ let formData = {
 	condition: coin.condition || '',
 	primaryImage: coin.primaryImage
 };
+let csrfToken = generateCsrfToken();
 
 if (Astro.request.method === 'POST') {
 	try {
 		const data = await Astro.request.formData();
-		const action = data.get('action') as string;
 
-		if (action === 'updateCoin') {
-			formData = {
-				name: data.get('name') as string,
-				slug: data.get('slug') as string,
-				description: data.get('description') as string,
-				collectionId: data.get('collectionId') as string,
-				year: data.get('year') as string,
-				mintage: data.get('mintage') as string,
-				condition: data.get('condition') as string,
-				primaryImage: data.get('primaryImage') as string
-			};
+		// Validate CSRF token
+		if (!validateCsrfToken(getCsrfTokenFromRequest(data))) {
+			errors.general = 'Invalid form submission. Please try again.';
+		} else {
+			const action = data.get('action') as string;
 
-			// Basic validation
-			if (!formData.name) errors.name = 'Name is required';
-			if (!formData.slug) errors.slug = 'Slug is required';
-			if (!formData.collectionId) errors.collectionId = 'Collection is required';
-			if (!formData.primaryImage) errors.primaryImage = 'Primary image filename is required';
+			if (action === 'updateCoin') {
+				formData = {
+					name: data.get('name') as string,
+					slug: data.get('slug') as string,
+					description: data.get('description') as string,
+					collectionId: data.get('collectionId') as string,
+					year: data.get('year') as string,
+					mintage: data.get('mintage') as string,
+					condition: data.get('condition') as string,
+					primaryImage: data.get('primaryImage') as string
+				};
 
-			// If no errors, update in database
-			if (Object.keys(errors).length === 0) {
-				await db.update(Coins).set({
-					name: formData.name,
-					slug: formData.slug,
-					description: formData.description,
-					collectionId: parseInt(formData.collectionId),
-					year: formData.year ? parseInt(formData.year) : null,
-					mintage: formData.mintage || null,
-					condition: formData.condition || null,
-					primaryImage: formData.primaryImage
-				}).where(eq(Coins.id, id));
+				// Basic validation
+				if (!formData.name) errors.name = 'Name is required';
+				if (!formData.slug) errors.slug = 'Slug is required';
+				if (!formData.collectionId) errors.collectionId = 'Collection is required';
+				if (!formData.primaryImage) errors.primaryImage = 'Primary image filename is required';
 
-				return Astro.redirect('/admin/coins');
-			}
-		} else if (action === 'addImage') {
-			const filename = data.get('filename') as string;
-			const title = data.get('title') as string;
-			const alt = data.get('alt') as string;
-			const description = data.get('imageDescription') as string;
-			const sortOrder = data.get('sortOrder') as string;
+				// If no errors, update in database
+				if (Object.keys(errors).length === 0) {
+					await db.update(Coins).set({
+						name: formData.name,
+						slug: formData.slug,
+						description: formData.description,
+						collectionId: parseInt(formData.collectionId),
+						year: formData.year ? parseInt(formData.year) : null,
+						mintage: formData.mintage || null,
+						condition: formData.condition || null,
+						primaryImage: formData.primaryImage
+					}).where(eq(Coins.id, id));
 
-			if (filename && title) {
-				await db.insert(Images).values({
-					coinId: id,
-					filename: filename,
-					title: title,
-					alt: alt || title,
-					description: description || null,
-					isPrimary: false,
-					sortOrder: parseInt(sortOrder) || 1
-				});
+					return Astro.redirect('/admin/coins');
+				}
+			} else if (action === 'addImage') {
+				const filename = data.get('filename') as string;
+				const title = data.get('title') as string;
+				const alt = data.get('alt') as string;
+				const description = data.get('imageDescription') as string;
+				const sortOrder = data.get('sortOrder') as string;
 
+				if (filename && title) {
+					await db.insert(Images).values({
+						coinId: id,
+						filename: filename,
+						title: title,
+						alt: alt || title,
+						description: description || null,
+						isPrimary: false,
+						sortOrder: parseInt(sortOrder) || 1
+					});
+
+					return Astro.redirect(`/admin/coins/edit/${id}`);
+				}
+			} else if (action === 'deleteImage') {
+				const imageId = parseInt(data.get('imageId') as string);
+				await db.delete(Images).where(eq(Images.id, imageId));
 				return Astro.redirect(`/admin/coins/edit/${id}`);
 			}
-		} else if (action === 'deleteImage') {
-			const imageId = parseInt(data.get('imageId') as string);
-			await db.delete(Images).where(eq(Images.id, imageId));
-			return Astro.redirect(`/admin/coins/edit/${id}`);
 		}
 	} catch (error) {
 		console.error('Error processing form:', error);
@@ -130,6 +138,7 @@ if (Astro.request.method === 'POST') {
 		<section class="edit-section">
 			<h2>Coin Details</h2>
 			<form method="POST" class="form">
+				<input type="hidden" name="_csrf" value={csrfToken} />
 				<input type="hidden" name="action" value="updateCoin">
 
 				<div class="form-group">
@@ -253,6 +262,7 @@ if (Astro.request.method === 'POST') {
 			<div class="add-image-form">
 				<h3>Add New Image</h3>
 				<form method="POST" class="form compact-form">
+					<input type="hidden" name="_csrf" value={csrfToken} />
 					<input type="hidden" name="action" value="addImage">
 
 					<div class="form-row">
@@ -342,6 +352,7 @@ if (Astro.request.method === 'POST') {
 										{image.isPrimary && <span class="primary-badge">Primary</span>}
 									</div>
 									<form method="POST" class="delete-form">
+										<input type="hidden" name="_csrf" value={csrfToken} />
 										<input type="hidden" name="action" value="deleteImage">
 										<input type="hidden" name="imageId" value={image.id}>
 										<button

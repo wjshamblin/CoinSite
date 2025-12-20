@@ -4,6 +4,7 @@ export const prerender = false; // Enable server-side rendering for authenticati
 
 import { db, Collections, eq } from 'astro:db';
 import { requireAuth, isRedirect } from '../../../../lib/authMiddleware';
+import { generateCsrfToken, validateCsrfToken, getCsrfTokenFromRequest } from '../../../../lib/csrf';
 
 // Check authentication
 const authResult = await requireAuth(Astro);
@@ -26,33 +27,40 @@ let formData = {
 	description: collection.description,
 	thumbnail: collection.thumbnail
 };
+let csrfToken = generateCsrfToken();
 
 if (Astro.request.method === 'POST') {
 	try {
 		const data = await Astro.request.formData();
-		formData = {
-			name: data.get('name') as string,
-			slug: data.get('slug') as string,
-			description: data.get('description') as string,
-			thumbnail: data.get('thumbnail') as string
-		};
 
-		// Basic validation
-		if (!formData.name) errors.name = 'Name is required';
-		if (!formData.slug) errors.slug = 'Slug is required';
-		if (!formData.description) errors.description = 'Description is required';
-		if (!formData.thumbnail) errors.thumbnail = 'Thumbnail filename is required';
+		// Validate CSRF token
+		if (!validateCsrfToken(getCsrfTokenFromRequest(data))) {
+			errors.general = 'Invalid form submission. Please try again.';
+		} else {
+			formData = {
+				name: data.get('name') as string,
+				slug: data.get('slug') as string,
+				description: data.get('description') as string,
+				thumbnail: data.get('thumbnail') as string
+			};
 
-		// If no errors, update in database
-		if (Object.keys(errors).length === 0) {
-			await db.update(Collections).set({
-				name: formData.name,
-				slug: formData.slug,
-				description: formData.description,
-				thumbnail: formData.thumbnail
-			}).where(eq(Collections.id, id));
+			// Basic validation
+			if (!formData.name) errors.name = 'Name is required';
+			if (!formData.slug) errors.slug = 'Slug is required';
+			if (!formData.description) errors.description = 'Description is required';
+			if (!formData.thumbnail) errors.thumbnail = 'Thumbnail filename is required';
 
-			return Astro.redirect('/admin/collections');
+			// If no errors, update in database
+			if (Object.keys(errors).length === 0) {
+				await db.update(Collections).set({
+					name: formData.name,
+					slug: formData.slug,
+					description: formData.description,
+					thumbnail: formData.thumbnail
+				}).where(eq(Collections.id, id));
+
+				return Astro.redirect('/admin/collections');
+			}
 		}
 	} catch (error) {
 		console.error('Error updating collection:', error);
@@ -73,6 +81,7 @@ if (Astro.request.method === 'POST') {
 	</div>
 
 	<form method="POST" class="admin-form">
+		<input type="hidden" name="_csrf" value={csrfToken} />
 		{errors.general && (
 			<div class="alert alert-error">
 				{errors.general}

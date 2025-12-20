@@ -4,6 +4,7 @@ export const prerender = false; // Enable server-side rendering for authenticati
 
 import { db, Collections, Coins } from 'astro:db';
 import { requireAuth, isRedirect } from '../../../lib/authMiddleware';
+import { generateCsrfToken, validateCsrfToken, getCsrfTokenFromRequest } from '../../../lib/csrf';
 
 // Check authentication
 const authResult = await requireAuth(Astro);
@@ -24,42 +25,49 @@ let formData = {
 	condition: '',
 	primaryImage: ''
 };
+let csrfToken = generateCsrfToken();
 
 if (Astro.request.method === 'POST') {
 	try {
 		const data = await Astro.request.formData();
-		formData = {
-			name: data.get('name') as string,
-			slug: data.get('slug') as string,
-			description: data.get('description') as string,
-			collectionId: data.get('collectionId') as string,
-			year: data.get('year') as string,
-			mintage: data.get('mintage') as string,
-			condition: data.get('condition') as string,
-			primaryImage: data.get('primaryImage') as string
-		};
 
-		// Basic validation
-		if (!formData.name) errors.name = 'Name is required';
-		if (!formData.slug) errors.slug = 'Slug is required';
-		if (!formData.collectionId) errors.collectionId = 'Collection is required';
-		if (!formData.primaryImage) errors.primaryImage = 'Primary image filename is required';
+		// Validate CSRF token
+		if (!validateCsrfToken(getCsrfTokenFromRequest(data))) {
+			errors.general = 'Invalid form submission. Please try again.';
+		} else {
+			formData = {
+				name: data.get('name') as string,
+				slug: data.get('slug') as string,
+				description: data.get('description') as string,
+				collectionId: data.get('collectionId') as string,
+				year: data.get('year') as string,
+				mintage: data.get('mintage') as string,
+				condition: data.get('condition') as string,
+				primaryImage: data.get('primaryImage') as string
+			};
 
-		// If no errors, save to database
-		if (Object.keys(errors).length === 0) {
-			await db.insert(Coins).values({
-				name: formData.name,
-				slug: formData.slug,
-				description: formData.description || null,
-				collectionId: parseInt(formData.collectionId),
-				year: formData.year ? parseInt(formData.year) : null,
-				mintage: formData.mintage || null,
-				condition: formData.condition || null,
-				primaryImage: formData.primaryImage,
-				createdAt: new Date()
-			});
+			// Basic validation
+			if (!formData.name) errors.name = 'Name is required';
+			if (!formData.slug) errors.slug = 'Slug is required';
+			if (!formData.collectionId) errors.collectionId = 'Collection is required';
+			if (!formData.primaryImage) errors.primaryImage = 'Primary image filename is required';
 
-			return Astro.redirect('/admin/coins');
+			// If no errors, save to database
+			if (Object.keys(errors).length === 0) {
+				await db.insert(Coins).values({
+					name: formData.name,
+					slug: formData.slug,
+					description: formData.description || null,
+					collectionId: parseInt(formData.collectionId),
+					year: formData.year ? parseInt(formData.year) : null,
+					mintage: formData.mintage || null,
+					condition: formData.condition || null,
+					primaryImage: formData.primaryImage,
+					createdAt: new Date()
+				});
+
+				return Astro.redirect('/admin/coins');
+			}
 		}
 	} catch (error) {
 		console.error('Error creating coin:', error);
@@ -75,6 +83,7 @@ if (Astro.request.method === 'POST') {
 	</div>
 
 	<form method="POST" class="admin-form">
+		<input type="hidden" name="_csrf" value={csrfToken} />
 		{errors.general && (
 			<div class="alert alert-error">
 				{errors.general}

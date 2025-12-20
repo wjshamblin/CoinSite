@@ -2,6 +2,7 @@
 import BaseHead from '../../components/BaseHead.astro';
 import { verifyPassword, createSession, createSessionCookie, getSessionFromRequest, getSessionUser } from '../../lib/auth';
 import { checkRateLimit, getRateLimitHeaders, LOGIN_RATE_LIMIT } from '../../lib/rateLimit';
+import { generateCsrfToken, validateCsrfToken, getCsrfTokenFromRequest } from '../../lib/csrf';
 
 export const prerender = false; // Enable server-side rendering for authentication
 
@@ -16,6 +17,7 @@ if (sessionToken) {
 
 let error = '';
 let username = '';
+let csrfToken = generateCsrfToken();
 
 if (Astro.request.method === 'POST') {
   // Get client IP for rate limiting
@@ -32,29 +34,36 @@ if (Astro.request.method === 'POST') {
   } else {
     try {
       const formData = await Astro.request.formData();
-      username = formData.get('username') as string;
-      const password = formData.get('password') as string;
 
-      if (!username || !password) {
-        error = 'Please enter both username and password';
+      // Validate CSRF token
+      const submittedToken = getCsrfTokenFromRequest(formData);
+      if (!validateCsrfToken(submittedToken)) {
+        error = 'Invalid form submission. Please try again.';
       } else {
-        const user = await verifyPassword(username, password);
+        username = formData.get('username') as string;
+        const password = formData.get('password') as string;
 
-        if (user) {
-          // Create session and set cookie
-          const sessionToken = await createSession(user.id);
-          const cookie = createSessionCookie(sessionToken);
-
-          // Return redirect with cookie header (Astro.redirect() creates new Response without our headers)
-          return new Response(null, {
-            status: 302,
-            headers: {
-              'Location': '/admin',
-              'Set-Cookie': cookie
-            }
-          });
+        if (!username || !password) {
+          error = 'Please enter both username and password';
         } else {
-          error = 'Invalid username or password';
+          const user = await verifyPassword(username, password);
+
+          if (user) {
+            // Create session and set cookie
+            const sessionToken = await createSession(user.id);
+            const cookie = createSessionCookie(sessionToken);
+
+            // Return redirect with cookie header (Astro.redirect() creates new Response without our headers)
+            return new Response(null, {
+              status: 302,
+              headers: {
+                'Location': '/admin',
+                'Set-Cookie': cookie
+              }
+            });
+          } else {
+            error = 'Invalid username or password';
+          }
         }
       }
     } catch (err) {
@@ -207,6 +216,7 @@ if (Astro.request.method === 'POST') {
       </div>
 
       <form method="POST" class="login-form">
+        <input type="hidden" name="_csrf" value={csrfToken} />
         {error && (
           <div class="error-message">
             {error}
