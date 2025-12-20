@@ -32,8 +32,14 @@ if (Astro.request.method === 'POST') {
         const sessionToken = await createSession(user.id);
         const cookie = createSessionCookie(sessionToken);
 
-        Astro.response.headers.set('Set-Cookie', cookie);
-        return Astro.redirect('/admin');
+        // Return redirect with cookie header (Astro.redirect() creates new Response without our headers)
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': '/admin',
+            'Set-Cookie': cookie
+          }
+        });
       } else {
         error = 'Invalid username or password';
       }
@@ -166,22 +172,6 @@ if (Astro.request.method === 'POST') {
         text-decoration: underline;
       }
 
-      .demo-info {
-        background: #d1ecf1;
-        color: #0c5460;
-        padding: 1rem;
-        border-radius: 6px;
-        border: 1px solid #bee5eb;
-        margin-bottom: 1.5rem;
-        font-size: 0.875rem;
-        text-align: center;
-      }
-
-      .demo-info strong {
-        display: block;
-        margin-bottom: 0.5rem;
-      }
-
       @media (max-width: 480px) {
         .login-container {
           padding: 2rem;
@@ -200,12 +190,6 @@ if (Astro.request.method === 'POST') {
       <div class="login-header">
         <h1>🪙 Admin Login</h1>
         <p>Coin Collection Management</p>
-      </div>
-
-      <div class="demo-info">
-        <strong>Demo Credentials:</strong>
-        Username: <code>admin</code><br>
-        Password: <code>admin123</code>
       </div>
 
       <form method="POST" class="login-form">
