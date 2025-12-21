@@ -28,7 +28,7 @@ export const GET: APIRoute = async ({ cookies, url }) => {
         url: blob.url,
         pathname: blob.pathname,
         filename: blob.pathname.split('/').pop(),
-        type: blob.pathname.startsWith('coins/') ? 'coins' : 'collections',
+        type: blob.pathname.startsWith('coins/') ? 'coins' : blob.pathname.startsWith('pages/') ? 'pages' : 'collections',
         size: blob.size,
         uploadedAt: blob.uploadedAt,
       }))

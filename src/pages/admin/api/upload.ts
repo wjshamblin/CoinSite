@@ -25,7 +25,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    if (!type || !['collections', 'coins'].includes(type)) {
+    if (!type || !['collections', 'coins', 'pages'].includes(type)) {
       return new Response(JSON.stringify({ error: 'Invalid upload type' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
