@@ -1,5 +1,7 @@
 ---
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import ImagePicker from '../../../../components/admin/ImagePicker.astro';
+import { getImageUrl } from '../../../../lib/images';
 export const prerender = false; // Enable server-side rendering for authentication
 
 import { db, Collections, eq } from 'astro:db';
@@ -136,23 +138,25 @@ if (Astro.request.method === 'POST') {
 			<div class="thumbnail-preview-container">
 				<img
 					id="thumbnail-preview"
-					src={formData.thumbnail.startsWith('coins/') ? `/images/${formData.thumbnail}` : `/images/collections/${formData.thumbnail}`}
+					src={getImageUrl(formData.thumbnail, 'collections')}
 					alt="Thumbnail preview"
 					class="thumbnail-preview"
 				/>
 			</div>
-			<input
-				type="text"
-				id="thumbnail"
-				name="thumbnail"
-				value={formData.thumbnail}
-				placeholder="e.g. roman-collection.jpg or coins/augustus-denarius-1.jpg"
-				required
-				class={errors.thumbnail ? 'error' : ''}
-			/>
+			<div class="input-with-picker">
+				<input
+					type="text"
+					id="thumbnail"
+					name="thumbnail"
+					value={formData.thumbnail}
+					placeholder="Select an image or enter URL"
+					required
+					class={errors.thumbnail ? 'error' : ''}
+				/>
+				<ImagePicker inputId="thumbnail" buttonText="Browse" />
+			</div>
 			<small>
-				<strong>Option 1:</strong> Filename only (e.g., <code>my-image.jpg</code>) - image must be in <code>public/images/collections/</code><br/>
-				<strong>Option 2:</strong> Use a coin image (e.g., <code>coins/augustus-denarius-1.jpg</code>) - references <code>public/images/coins/</code>
+				Click "Browse" to select from uploaded images, or enter a Vercel Blob URL directly.
 			</small>
 			{errors.thumbnail && <span class="error-text">{errors.thumbnail}</span>}
 		</div>
@@ -382,6 +386,16 @@ if (Astro.request.method === 'POST') {
 		object-fit: cover;
 	}
 
+	.input-with-picker {
+		display: flex;
+		gap: 0.5rem;
+		align-items: stretch;
+	}
+
+	.input-with-picker input {
+		flex: 1;
+	}
+
 	@media (max-width: 768px) {
 		.page-header {
 			flex-direction: column;
@@ -399,7 +413,7 @@ if (Astro.request.method === 'POST') {
 	}
 </style>
 
-<script>
+<script is:inline>
 	function deleteCollection(id, name) {
 		if (confirm(`Are you sure you want to delete the collection "${name}"? This will also delete all associated coins and images.`)) {
 			fetch(`/admin/api/collections/${id}`, {
@@ -433,9 +447,14 @@ if (Astro.request.method === 'POST') {
 	document.getElementById('thumbnail').addEventListener('input', function(e) {
 		const value = e.target.value;
 		const preview = document.getElementById('thumbnail-preview');
-		if (value.startsWith('coins/')) {
+		if (value.startsWith('http://') || value.startsWith('https://')) {
+			// Blob URL - use directly
+			preview.src = value;
+		} else if (value.startsWith('coins/')) {
+			// Legacy coin path
 			preview.src = '/images/' + value;
 		} else {
+			// Legacy collection path
 			preview.src = '/images/collections/' + value;
 		}
 	});

@@ -1,0 +1,390 @@
+---
+/**
+ * Image Picker Component
+ *
+ * A modal-based image picker that allows selecting images from Vercel Blob storage.
+ *
+ * Props:
+ * - inputId: The ID of the input field to update when an image is selected
+ * - buttonText: Text for the picker button (default: "Browse Images")
+ * - typeFilter: Optional filter for image type ("coins" or "collections")
+ */
+interface Props {
+  inputId: string;
+  buttonText?: string;
+  typeFilter?: 'coins' | 'collections';
+}
+
+const { inputId, buttonText = 'Browse Images', typeFilter } = Astro.props;
+const pickerId = `picker-${inputId}`;
+---
+
+<button
+  type="button"
+  class="btn btn-outline picker-btn"
+  data-picker-id={pickerId}
+  data-input-id={inputId}
+  data-type-filter={typeFilter || ''}
+>
+  {buttonText}
+</button>
+
+<!-- Modal (only rendered once, reused by all pickers) -->
+<div id="image-picker-modal" class="picker-modal" style="display: none;">
+  <div class="picker-overlay"></div>
+  <div class="picker-content">
+    <div class="picker-header">
+      <h3>Select an Image</h3>
+      <div class="picker-filters">
+        <button type="button" class="filter-btn active" data-filter="">All</button>
+        <button type="button" class="filter-btn" data-filter="coins">Coins</button>
+        <button type="button" class="filter-btn" data-filter="collections">Collections</button>
+      </div>
+      <button type="button" class="picker-close">&times;</button>
+    </div>
+    <div class="picker-body">
+      <div class="picker-loading">Loading images...</div>
+      <div class="picker-grid"></div>
+      <div class="picker-empty" style="display: none;">No images found</div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .picker-btn {
+    margin-left: 0.5rem;
+  }
+
+  .picker-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .picker-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  .picker-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    width: 90vw;
+    max-width: 900px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  }
+
+  .picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #dee2e6;
+    gap: 1rem;
+  }
+
+  .picker-header h3 {
+    margin: 0;
+    color: #495057;
+    font-size: 1.25rem;
+  }
+
+  .picker-filters {
+    display: flex;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .filter-btn {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #dee2e6;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+
+  .filter-btn:hover {
+    background: #f8f9fa;
+  }
+
+  .filter-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+  }
+
+  .picker-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .picker-close:hover {
+    color: #495057;
+  }
+
+  .picker-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+  }
+
+  .picker-loading,
+  .picker-empty {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+  }
+
+  .picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+
+  .picker-item {
+    position: relative;
+    aspect-ratio: 1;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .picker-item:hover {
+    border-color: #007bff;
+    transform: scale(1.02);
+  }
+
+  .picker-item.selected {
+    border-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
+  }
+
+  .picker-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .picker-item-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    color: white;
+    padding: 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .picker-item-type {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    margin-bottom: 0.2rem;
+  }
+
+  .picker-item-name {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @media (max-width: 768px) {
+    .picker-content {
+      width: 95vw;
+      max-height: 90vh;
+    }
+
+    .picker-header {
+      flex-wrap: wrap;
+    }
+
+    .picker-filters {
+      order: 3;
+      width: 100%;
+      justify-content: flex-start;
+      margin-top: 0.5rem;
+    }
+
+    .picker-grid {
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
+  }
+</style>
+
+<script is:inline>
+(function() {
+  // Image picker state
+  let allImages = [];
+  let currentInputId = null;
+  let currentFilter = '';
+  let imagesLoaded = false;
+
+  // Get modal elements
+  const modal = document.getElementById('image-picker-modal');
+  const overlay = modal?.querySelector('.picker-overlay');
+  const closeBtn = modal?.querySelector('.picker-close');
+  const grid = modal?.querySelector('.picker-grid');
+  const loading = modal?.querySelector('.picker-loading');
+  const empty = modal?.querySelector('.picker-empty');
+  const filterBtns = modal?.querySelectorAll('.filter-btn');
+
+  // Attach click handlers to all picker buttons
+  document.querySelectorAll('.picker-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      currentInputId = this.dataset.inputId;
+      const typeFilter = this.dataset.typeFilter;
+
+      // Set initial filter based on button's type filter
+      if (typeFilter) {
+        currentFilter = typeFilter;
+        filterBtns?.forEach(fb => {
+          fb.classList.toggle('active', fb.dataset.filter === typeFilter);
+        });
+      }
+
+      openPicker();
+    });
+  });
+
+  // Filter buttons
+  filterBtns?.forEach(btn => {
+    btn.addEventListener('click', function() {
+      currentFilter = this.dataset.filter || '';
+      filterBtns.forEach(fb => fb.classList.remove('active'));
+      this.classList.add('active');
+      renderImages();
+    });
+  });
+
+  // Close handlers
+  overlay?.addEventListener('click', closePicker);
+  closeBtn?.addEventListener('click', closePicker);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePicker();
+  });
+
+  function openPicker() {
+    if (!modal) return;
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    if (!imagesLoaded) {
+      loadImages();
+    } else {
+      renderImages();
+    }
+  }
+
+  function closePicker() {
+    if (!modal) return;
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  async function loadImages() {
+    if (!loading || !grid || !empty) return;
+
+    loading.style.display = 'block';
+    grid.innerHTML = '';
+    empty.style.display = 'none';
+
+    try {
+      const response = await fetch('/admin/api/images/list');
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      allImages = data.images || [];
+      imagesLoaded = true;
+      renderImages();
+    } catch (error) {
+      console.error('Error loading images:', error);
+      loading.textContent = 'Error loading images. Please try again.';
+    }
+  }
+
+  function renderImages() {
+    if (!loading || !grid || !empty) return;
+
+    loading.style.display = 'none';
+
+    // Filter images
+    const filtered = currentFilter
+      ? allImages.filter(img => img.type === currentFilter)
+      : allImages;
+
+    if (filtered.length === 0) {
+      empty.style.display = 'block';
+      grid.innerHTML = '';
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    // Get current value for highlighting
+    const currentInput = document.getElementById(currentInputId);
+    const currentValue = currentInput?.value || '';
+
+    grid.innerHTML = filtered.map(img => {
+      const isSelected = currentValue === img.url || currentValue === img.filename;
+      return `
+        <div class="picker-item ${isSelected ? 'selected' : ''}"
+             data-url="${img.url}"
+             data-filename="${img.filename}"
+             data-type="${img.type}">
+          <img src="${img.url}" alt="${img.filename}" loading="lazy">
+          <div class="picker-item-info">
+            <span class="picker-item-type">${img.type}</span>
+            <span class="picker-item-name">${img.filename}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Add click handlers to items
+    grid.querySelectorAll('.picker-item').forEach(item => {
+      item.addEventListener('click', function() {
+        selectImage(this.dataset.url);
+      });
+    });
+  }
+
+  function selectImage(url) {
+    if (!currentInputId) return;
+
+    const input = document.getElementById(currentInputId);
+    if (input) {
+      input.value = url;
+      // Trigger input event for any listeners
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      // Trigger change event
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    closePicker();
+  }
+})();
+</script>

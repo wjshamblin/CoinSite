@@ -1,0 +1,12 @@
+# Ignore temporary/test directories
+X/
+
+# Ignore local scripts
+scripts/*.mjs
+*.mjs
+
+# Ignore local database
+db.sqlite
+
+# Ignore beads socket
+.beads/bd.sock
