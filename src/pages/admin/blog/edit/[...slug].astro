@@ -29,20 +29,33 @@ if (!post) {
 
 const errors: Record<string, string> = {};
 
-// Handle pubDate - could be Date object, timestamp number, or timestamp string
-const pubDateValue = post.pubDate;
-let pubDateFormatted: string;
-if (pubDateValue instanceof Date) {
-	pubDateFormatted = pubDateValue.toISOString().split('T')[0];
-} else if (typeof pubDateValue === 'number') {
-	pubDateFormatted = new Date(pubDateValue).toISOString().split('T')[0];
-} else {
-	// String - could be ISO string or timestamp string
-	const parsed = Number(pubDateValue);
-	pubDateFormatted = isNaN(parsed)
-		? new Date(pubDateValue).toISOString().split('T')[0]
-		: new Date(parsed).toISOString().split('T')[0];
+// Helper to safely format date for input field
+function formatDateForInput(value: any): string {
+	const fallback = new Date().toISOString().split('T')[0];
+	try {
+		let date: Date;
+		if (value instanceof Date) {
+			date = value;
+		} else if (typeof value === 'number') {
+			date = new Date(value);
+		} else if (typeof value === 'string') {
+			// Try parsing as number first (timestamp string)
+			const parsed = Number(value);
+			date = isNaN(parsed) ? new Date(value) : new Date(parsed);
+		} else {
+			return fallback;
+		}
+		// Check if date is valid
+		if (isNaN(date.getTime())) {
+			return fallback;
+		}
+		return date.toISOString().split('T')[0];
+	} catch {
+		return fallback;
+	}
 }
+
+const pubDateFormatted = formatDateForInput(post.pubDate);
 
 let formData = {
 	title: post.title,
