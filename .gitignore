@@ -26,3 +26,8 @@ db.sqlite
 # jetbrains setting folder
 .idea/
 .vercel
+
+# temporary/test files
+X/
+*.mjs
+scripts/*.mjs
