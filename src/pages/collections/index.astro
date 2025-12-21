@@ -1,10 +1,19 @@
 ---
 // Collections index page - shows thumbnail gallery of all collections
 import Layout from '../../layouts/Layout.astro';
-import { Image } from 'astro:assets';
 import { db, Collections } from 'astro:db';
 
 const collections = await db.select().from(Collections);
+
+// Helper to get correct image path
+function getThumbnailPath(thumbnail: string): string {
+	// If thumbnail starts with 'coins/', it's in the coins folder
+	if (thumbnail.startsWith('coins/')) {
+		return `/images/${thumbnail}`;
+	}
+	// Otherwise it's in the collections folder
+	return `/images/collections/${thumbnail}`;
+}
 ---
 
 <Layout title="Coin Collections">
@@ -20,11 +29,11 @@ const collections = await db.select().from(Collections);
 		{collections.map((collection) => (
 			<a href={`/collections/${collection.slug}`} class="collection-card">
 				<div class="card-image-wrapper">
-					<Image
-						src={`/images/collections/${collection.thumbnail}`}
+					<img
+						src={getThumbnailPath(collection.thumbnail)}
 						alt={collection.name}
-						width={500}
-						height={320}
+						width="500"
+						height="320"
 						class="card-image"
 						loading="lazy"
 					/>
