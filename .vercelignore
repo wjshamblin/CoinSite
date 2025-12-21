@@ -1,9 +1,12 @@
 # Ignore temporary/test directories
 X/
 
-# Ignore local scripts
-scripts/*.mjs
-*.mjs
+# Ignore local utility scripts (but not astro.config.mjs)
+check-*.mjs
+fix-*.mjs
+find-*.mjs
+query-*.mjs
+update-*.mjs
 
 # Ignore local database
 db.sqlite
