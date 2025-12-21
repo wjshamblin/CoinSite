@@ -222,7 +222,7 @@ const collections = await db.select().from(Collections).orderBy(Collections.crea
 	}
 </style>
 
-<script>
+<script is:inline>
 	function deleteCollection(id, name) {
 		if (confirm(`Are you sure you want to delete the collection "${name}"? This will also delete all associated coins and images.`)) {
 			fetch(`/admin/api/collections/${id}`, {
