@@ -23,12 +23,26 @@ if (!post) {
 // Render markdown content to HTML
 const htmlContent = await marked(post.content);
 
-// Helper to parse dates that could be Date, number, or string timestamp
+// Helper to safely parse date
 function parseDate(value: any): Date {
-	if (value instanceof Date) return value;
-	if (typeof value === 'number') return new Date(value);
-	const parsed = Number(value);
-	return isNaN(parsed) ? new Date(value) : new Date(parsed);
+	const fallback = new Date();
+	if (!value) return fallback;
+	try {
+		let date: Date;
+		if (value instanceof Date) {
+			date = value;
+		} else if (typeof value === 'number') {
+			date = new Date(value);
+		} else if (typeof value === 'string') {
+			const parsed = Number(value);
+			date = isNaN(parsed) ? new Date(value) : new Date(parsed);
+		} else {
+			return fallback;
+		}
+		return isNaN(date.getTime()) ? fallback : date;
+	} catch {
+		return fallback;
+	}
 }
 
 const pubDate = parseDate(post.pubDate);
