@@ -289,7 +289,7 @@ const coins = await db
 	}
 </style>
 
-<script>
+<script is:inline>
 	function deleteCoin(id, name) {
 		if (confirm(`Are you sure you want to delete the coin "${name}"? This will also delete all associated images.`)) {
 			fetch(`/admin/api/coins/${id}`, {
