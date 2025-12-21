@@ -177,9 +177,6 @@ const user = sessionToken ? await getSessionUser(sessionToken) : null;
 						<li><a href="/admin/users" class={Astro.url.pathname.startsWith('/admin/users') ? 'active' : ''}>
 							<span class="nav-icon">👥</span>Users
 						</a></li>
-						<li><a href="/admin/settings" class={Astro.url.pathname.startsWith('/admin/settings') ? 'active' : ''}>
-							<span class="nav-icon">⚙️</span>Settings
-						</a></li>
 						<li style="margin-top: 2rem; border-top: 1px solid #34495e; padding-top: 1rem;">
 							<a href="/" target="_blank">
 								<span class="nav-icon">🌐</span>View Site
