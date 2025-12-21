@@ -3,7 +3,7 @@
 import db from '@astrojs/db';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
-import vercel from '@astrojs/vercel/serverless';
+import vercel from '@astrojs/vercel';
 import { defineConfig } from 'astro/config';
 
 // Tailwind v4 temporarily disabled - using CSS custom properties instead
