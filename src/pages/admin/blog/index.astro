@@ -1,23 +1,35 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { getCollection } from 'astro:content';
+import { db, BlogPosts, eq, desc } from 'astro:db';
 import { requireAuth, isRedirect } from '../../../lib/authMiddleware';
 
-export const prerender = false; // Enable server-side rendering for authentication
+export const prerender = false;
 
 // Check authentication
 const authResult = await requireAuth(Astro);
 if (isRedirect(authResult)) return authResult;
 const user = authResult;
 
-const blogPosts = await getCollection('blog');
+// Handle delete action
+if (Astro.request.method === 'POST') {
+	const data = await Astro.request.formData();
+	const action = data.get('action');
+	const postId = data.get('postId');
+
+	if (action === 'delete' && postId) {
+		await db.delete(BlogPosts).where(eq(BlogPosts.id, parseInt(postId as string)));
+		return Astro.redirect('/admin/blog');
+	}
+}
+
+const blogPosts = await db.select().from(BlogPosts).orderBy(desc(BlogPosts.pubDate));
 ---
 
 <AdminLayout title="Blog Posts">
 	<div class="page-header">
 		<h1>Blog Posts</h1>
 		<a href="/admin/blog/new" class="btn btn-primary">
-			➕ New Blog Post
+			+ New Blog Post
 		</a>
 	</div>
 
@@ -36,30 +48,29 @@ const blogPosts = await getCollection('blog');
 				{blogPosts.map((post) => (
 					<tr>
 						<td>
-							<strong>{post.data.title}</strong>
+							<strong>{post.title}</strong>
 						</td>
 						<td>
-							<span class="description">{post.data.description}</span>
+							<span class="description">{post.description}</span>
 						</td>
 						<td>
-							{new Date(post.data.pubDate).toLocaleDateString()}
+							{new Date(post.pubDate).toLocaleDateString()}
 						</td>
 						<td>
-							{post.data.updatedDate
-								? new Date(post.data.updatedDate).toLocaleDateString()
+							{post.updatedDate
+								? new Date(post.updatedDate).toLocaleDateString()
 								: '-'
 							}
 						</td>
 						<td>
 							<div class="actions">
-								<a href={`/admin/blog/edit/${post.id}`} class="btn btn-sm">Edit</a>
-								<a href={`/blog/${post.id}`} target="_blank" class="btn btn-sm btn-outline">View</a>
-								<button
-									class="btn btn-sm btn-danger"
-									onclick={`deletePost('${post.id}', '${post.data.title.replace(/'/g, "\\'")}')`}
-								>
-									Delete
-								</button>
+								<a href={`/admin/blog/edit/${post.slug}`} class="btn btn-sm">Edit</a>
+								<a href={`/blog/${post.slug}`} target="_blank" class="btn btn-sm btn-outline">View</a>
+								<form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this post?')">
+									<input type="hidden" name="action" value="delete" />
+									<input type="hidden" name="postId" value={post.id} />
+									<button type="submit" class="btn btn-sm btn-danger">Delete</button>
+								</form>
 							</div>
 						</td>
 					</tr>
@@ -216,32 +227,3 @@ const blogPosts = await getCollection('blog');
 		}
 	}
 </style>
-
-<script>
-	window.deletePost = function(slug, title) {
-		if (confirm(`Are you sure you want to delete the blog post "${title}"?`)) {
-			console.log('Deleting blog post:', slug);
-			fetch(`/admin/api/blog/${slug}`, {
-				method: 'DELETE',
-			})
-			.then(response => {
-				console.log('Response status:', response.status);
-				console.log('Response ok:', response.ok);
-				return response.json().then(data => ({ status: response.status, ok: response.ok, data }));
-			})
-			.then(({ status, ok, data }) => {
-				console.log('Response data:', data);
-				if (ok) {
-					alert(data.message || 'Blog post deleted successfully');
-					location.reload();
-				} else {
-					alert('Error deleting blog post: ' + (data.error || 'Unknown error'));
-				}
-			})
-			.catch(error => {
-				console.error('Fetch error:', error);
-				alert('Network error deleting blog post: ' + error.message);
-			});
-		}
-	}
-</script>

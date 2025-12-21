@@ -1,24 +1,23 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-export const prerender = false; // Enable server-side rendering for authentication
-
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { db, BlogPosts } from 'astro:db';
 import { requireAuth, isRedirect } from '../../../lib/authMiddleware';
 import { generateCsrfToken, validateCsrfToken, getCsrfTokenFromRequest } from '../../../lib/csrf';
+
+export const prerender = false;
 
 // Check authentication
 const authResult = await requireAuth(Astro);
 if (isRedirect(authResult)) return authResult;
 const user = authResult;
 
-const errors = {};
+const errors: Record<string, string> = {};
 let formData = {
 	title: '',
 	slug: '',
 	description: '',
 	content: '',
-	pubDate: new Date().toISOString().split('T')[0], // Today's date
+	pubDate: new Date().toISOString().split('T')[0],
 	heroImage: ''
 };
 let csrfToken = generateCsrfToken();
@@ -27,7 +26,6 @@ if (Astro.request.method === 'POST') {
 	try {
 		const data = await Astro.request.formData();
 
-		// Validate CSRF token
 		if (!validateCsrfToken(getCsrfTokenFromRequest(data))) {
 			errors.general = 'Invalid form submission. Please try again.';
 		} else {
@@ -40,25 +38,28 @@ if (Astro.request.method === 'POST') {
 				heroImage: data.get('heroImage') as string
 			};
 
-			// Basic validation
+			// Validation
 			if (!formData.title) errors.title = 'Title is required';
 			if (!formData.slug) errors.slug = 'Slug is required';
 			if (!formData.description) errors.description = 'Description is required';
 			if (!formData.content) errors.content = 'Content is required';
 			if (!formData.pubDate) errors.pubDate = 'Publication date is required';
 
-			// If no errors, create the markdown file
 			if (Object.keys(errors).length === 0) {
-				const frontmatter = `---
-title: "${formData.title}"
-description: "${formData.description}"
-pubDate: "${formData.pubDate}"${formData.heroImage ? `\nheroImage: "${formData.heroImage}"` : ''}
----
+				// Get next ID
+				const existingPosts = await db.select({ id: BlogPosts.id }).from(BlogPosts);
+				const maxId = existingPosts.reduce((max, p) => Math.max(max, p.id), 0);
 
-${formData.content}`;
-
-				const filePath = join(process.cwd(), 'src', 'content', 'blog', `${formData.slug}.md`);
-				await writeFile(filePath, frontmatter, 'utf-8');
+				await db.insert(BlogPosts).values({
+					id: maxId + 1,
+					slug: formData.slug,
+					title: formData.title,
+					description: formData.description,
+					content: formData.content,
+					heroImage: formData.heroImage || null,
+					pubDate: new Date(formData.pubDate),
+					createdAt: new Date(),
+				});
 
 				return Astro.redirect('/admin/blog');
 			}
@@ -151,9 +152,9 @@ ${formData.content}`;
 					id="heroImage"
 					name="heroImage"
 					value={formData.heroImage}
-					placeholder="e.g. blog-hero-image.jpg"
+					placeholder="e.g. /images/blog/my-image.jpg"
 				/>
-				<small>Upload to <code>src/assets/</code> first, then enter filename</small>
+				<small>URL or path to hero image</small>
 			</div>
 		</div>
 
@@ -182,7 +183,7 @@ ${formData.content}`;
 	</form>
 
 	<div class="help-section">
-		<h3>📝 Markdown Tips</h3>
+		<h3>Markdown Tips</h3>
 		<div class="markdown-help">
 			<div class="help-column">
 				<h4>Formatting</h4>
@@ -412,33 +413,4 @@ ${formData.content}`;
 			.trim();
 		document.getElementById('slug').value = slug;
 	});
-
-	// Add basic markdown shortcuts
-	document.getElementById('content').addEventListener('keydown', function(e) {
-		if (e.ctrlKey || e.metaKey) {
-			switch(e.key) {
-				case 'b':
-					e.preventDefault();
-					insertMarkdown('**', '**');
-					break;
-				case 'i':
-					e.preventDefault();
-					insertMarkdown('*', '*');
-					break;
-			}
-		}
-	});
-
-	function insertMarkdown(before, after) {
-		const textarea = document.getElementById('content');
-		const start = textarea.selectionStart;
-		const end = textarea.selectionEnd;
-		const selected = textarea.value.substring(start, end);
-		const replacement = before + selected + after;
-
-		textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
-		textarea.focus();
-		textarea.selectionStart = start + before.length;
-		textarea.selectionEnd = start + before.length + selected.length;
-	}
 </script>

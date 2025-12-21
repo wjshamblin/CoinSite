@@ -80,6 +80,25 @@ const AdminSessions = defineTable({
   }
 });
 
+// Blog posts table
+const BlogPosts = defineTable({
+  columns: {
+    id: column.number({ primaryKey: true }),
+    slug: column.text({ unique: true }),
+    title: column.text(),
+    description: column.text(),
+    content: column.text(), // Markdown content
+    heroImage: column.text({ optional: true }),
+    pubDate: column.date(),
+    updatedDate: column.date({ optional: true }),
+    createdAt: column.date({ default: new Date() }),
+  },
+  indexes: {
+    slugIdx: { on: ['slug'], unique: true },
+    pubDateIdx: { on: ['pubDate'] },
+  }
+});
+
 export default defineDb({
   tables: {
     Collections,
@@ -87,5 +106,6 @@ export default defineDb({
     Images,
     AdminUsers,
     AdminSessions,
+    BlogPosts,
   }
 });

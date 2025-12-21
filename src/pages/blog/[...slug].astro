@@ -1,30 +1,35 @@
 ---
-import { type CollectionEntry, getCollection, render } from 'astro:content';
 import BlogPost from '../../layouts/BlogPost.astro';
+import { db, BlogPosts, eq } from 'astro:db';
+import { marked } from 'marked';
 
 export const prerender = false;
 
-// Server-side rendering - get post by slug from URL params
 const { slug } = Astro.params;
 
 if (!slug) {
 	return new Response('Post not found', { status: 404 });
 }
 
-// Find the post by slug (slug is an array for [...slug])
 const postSlug = Array.isArray(slug) ? slug.join('/') : slug;
 
-const posts = await getCollection('blog');
-// Match against the post's id property (Astro 5 uses id, not slug)
-const post = posts.find(p => p.id === postSlug);
+const posts = await db.select().from(BlogPosts).where(eq(BlogPosts.slug, postSlug));
+const post = posts[0];
 
 if (!post) {
 	return new Response('Post not found', { status: 404 });
 }
 
-const { Content } = await render(post);
+// Render markdown content to HTML
+const htmlContent = await marked(post.content);
 ---
 
-<BlogPost {...post.data}>
-	<Content />
+<BlogPost
+	title={post.title}
+	description={post.description}
+	pubDate={new Date(post.pubDate)}
+	updatedDate={post.updatedDate ? new Date(post.updatedDate) : undefined}
+	heroImage={post.heroImage}
+>
+	<Fragment set:html={htmlContent} />
 </BlogPost>

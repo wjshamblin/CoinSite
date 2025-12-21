@@ -1,8 +1,6 @@
 ---
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
-import { getCollection } from 'astro:content';
-import { writeFile, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { db, BlogPosts, eq } from 'astro:db';
 import { requireAuth, isRedirect } from '../../../../lib/authMiddleware';
 import { generateCsrfToken, validateCsrfToken, getCsrfTokenFromRequest } from '../../../../lib/csrf';
 
@@ -15,33 +13,27 @@ const user = authResult;
 
 const { slug } = Astro.params;
 
-// Find the blog post
-const blogPosts = await getCollection('blog');
-const post = blogPosts.find(p => p.id === slug);
+if (!slug) {
+	return Astro.redirect('/admin/blog');
+}
+
+const postSlug = Array.isArray(slug) ? slug.join('/') : slug;
+
+// Find the blog post in the database
+const posts = await db.select().from(BlogPosts).where(eq(BlogPosts.slug, postSlug));
+const post = posts[0];
 
 if (!post) {
 	return Astro.redirect('/admin/blog');
 }
 
-// Read the raw markdown file to get content
-const filePath = join(process.cwd(), 'src', 'content', 'blog', `${slug}.md`);
-let rawContent = '';
-try {
-	const fileContent = await readFile(filePath, 'utf-8');
-	// Extract content after frontmatter
-	const contentMatch = fileContent.match(/^---[\s\S]*?---\s*([\s\S]*)$/);
-	rawContent = contentMatch ? contentMatch[1].trim() : '';
-} catch (e) {
-	console.error('Error reading blog file:', e);
-}
-
 const errors: Record<string, string> = {};
 let formData = {
-	title: post.data.title,
-	description: post.data.description,
-	content: rawContent,
-	pubDate: post.data.pubDate.toISOString().split('T')[0],
-	heroImage: post.data.heroImage || ''
+	title: post.title,
+	description: post.description,
+	content: post.content,
+	pubDate: new Date(post.pubDate).toISOString().split('T')[0],
+	heroImage: post.heroImage || ''
 };
 let successMessage = '';
 let csrfToken = generateCsrfToken();
@@ -68,26 +60,29 @@ if (Astro.request.method === 'POST') {
 			if (!formData.pubDate) errors.pubDate = 'Publication date is required';
 
 			if (Object.keys(errors).length === 0) {
-				const frontmatter = `---
-title: "${formData.title}"
-description: "${formData.description}"
-pubDate: "${formData.pubDate}"${formData.heroImage ? `\nheroImage: "${formData.heroImage}"` : ''}
----
+				// Update the database
+				await db.update(BlogPosts)
+					.set({
+						title: formData.title,
+						description: formData.description,
+						content: formData.content,
+						heroImage: formData.heroImage || null,
+						pubDate: new Date(formData.pubDate),
+						updatedDate: new Date(),
+					})
+					.where(eq(BlogPosts.slug, postSlug));
 
-${formData.content}`;
-
-				await writeFile(filePath, frontmatter, 'utf-8');
 				successMessage = 'Blog post updated successfully!';
 			}
 		}
 	} catch (error) {
 		console.error('Error updating blog post:', error);
-		errors.general = 'An error occurred while updating the blog post. Note: Editing is not available in production - please edit files locally.';
+		errors.general = 'An error occurred while updating the blog post';
 	}
 }
 ---
 
-<AdminLayout title={`Edit: ${post.data.title}`}>
+<AdminLayout title={`Edit: ${post.title}`}>
 	<div class="page-header">
 		<h1>Edit Blog Post</h1>
 		<a href="/admin/blog" class="btn btn-outline">← Back to Blog Posts</a>
@@ -126,7 +121,7 @@ ${formData.content}`;
 				<input
 					type="text"
 					id="slug"
-					value={slug}
+					value={postSlug}
 					disabled
 					class="disabled"
 				/>
@@ -143,6 +138,7 @@ ${formData.content}`;
 				required
 				class={errors.description ? 'error' : ''}
 			>{formData.description}</textarea>
+			<small>This appears in post previews and meta descriptions</small>
 			{errors.description && <span class="error-text">{errors.description}</span>}
 		</div>
 
@@ -167,8 +163,9 @@ ${formData.content}`;
 					id="heroImage"
 					name="heroImage"
 					value={formData.heroImage}
-					placeholder="e.g. blog-hero-image.jpg"
+					placeholder="e.g. /images/blog/my-image.jpg"
 				/>
+				<small>URL or path to hero image</small>
 			</div>
 		</div>
 
@@ -181,6 +178,7 @@ ${formData.content}`;
 				required
 				class={errors.content ? 'error' : ''}
 			>{formData.content}</textarea>
+			<small>You can use Markdown syntax for formatting</small>
 			{errors.content && <span class="error-text">{errors.content}</span>}
 		</div>
 
@@ -188,7 +186,7 @@ ${formData.content}`;
 			<button type="submit" class="btn btn-primary">
 				Save Changes
 			</button>
-			<a href={`/blog/${slug}`} target="_blank" class="btn btn-outline">
+			<a href={`/blog/${postSlug}`} target="_blank" class="btn btn-outline">
 				View Post
 			</a>
 			<a href="/admin/blog" class="btn btn-outline">
@@ -198,8 +196,26 @@ ${formData.content}`;
 	</form>
 
 	<div class="help-section">
-		<h3>Note</h3>
-		<p>Blog editing works in development mode. In production (Vercel), the filesystem is read-only. To edit posts in production, modify the markdown files locally and redeploy.</p>
+		<h3>Markdown Tips</h3>
+		<div class="markdown-help">
+			<div class="help-column">
+				<h4>Formatting</h4>
+				<ul>
+					<li><code>**bold text**</code> → <strong>bold text</strong></li>
+					<li><code>*italic text*</code> → <em>italic text</em></li>
+					<li><code>`code`</code> → <code>code</code></li>
+				</ul>
+			</div>
+			<div class="help-column">
+				<h4>Structure</h4>
+				<ul>
+					<li><code># Heading 1</code></li>
+					<li><code>## Heading 2</code></li>
+					<li><code>- List item</code></li>
+					<li><code>[link text](url)</code></li>
+				</ul>
+			</div>
+		</div>
 	</div>
 </AdminLayout>
 
@@ -349,22 +365,44 @@ ${formData.content}`;
 	}
 
 	.help-section {
-		background: #fff3cd;
-		padding: 1rem 1.5rem;
+		background: #f8f9fa;
+		padding: 1.5rem;
 		border-radius: 8px;
-		border-left: 4px solid #ffc107;
+		border-left: 4px solid #28a745;
 	}
 
 	.help-section h3 {
-		margin: 0 0 0.5rem 0;
-		color: #856404;
-		font-size: 1rem;
+		margin-top: 0;
+		color: #495057;
 	}
 
-	.help-section p {
+	.markdown-help {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 2rem;
+	}
+
+	.help-column h4 {
+		color: #495057;
+		margin-bottom: 0.5rem;
+	}
+
+	.help-column ul {
 		margin: 0;
-		color: #856404;
+		padding-left: 1.2rem;
+	}
+
+	.help-column li {
+		margin-bottom: 0.25rem;
+		color: #6c757d;
 		font-size: 0.9rem;
+	}
+
+	code {
+		background: #e9ecef;
+		padding: 0.2rem 0.4rem;
+		border-radius: 3px;
+		font-size: 0.875rem;
 	}
 
 	@media (max-width: 768px) {
@@ -380,6 +418,10 @@ ${formData.content}`;
 
 		.form-actions {
 			flex-direction: column;
+		}
+
+		.markdown-help {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
