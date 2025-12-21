@@ -16,7 +16,25 @@ This skill provides a systematic workflow for debugging Vercel deployment issues
 - When Vercel build logs show errors
 - To verify deployment status and configuration
 
-## Diagnostic Workflow
+## Automated Health Check
+
+Run the comprehensive health check script to automatically:
+1. Fetch the latest Vercel deployment
+2. Check deployment status (Ready/Error/Building)
+3. Scan build logs for errors
+4. Scan runtime logs for errors
+5. Test key pages on lordmarcovan.com for HTTP errors
+
+```bash
+npx tsx .claude/skills/vercel-deploy-debug/scripts/deployment-health-check.ts
+```
+
+Optionally pass a specific deployment URL:
+```bash
+npx tsx .claude/skills/vercel-deploy-debug/scripts/deployment-health-check.ts https://coinsite-xxx.vercel.app
+```
+
+## Manual Diagnostic Workflow
 
 ### Step 1: Check Deployment Status
 
@@ -155,6 +173,7 @@ export default defineConfig({
 
 | Command | Purpose |
 |---------|---------|
+| `npx tsx ...health-check.ts` | Run automated health check |
 | `vercel ls` | List deployments |
 | `vercel inspect <url>` | Deployment details |
 | `vercel logs <url>` | View logs |
@@ -162,6 +181,7 @@ export default defineConfig({
 | `vercel env pull` | Pull env vars to local .env |
 | `vercel --prod` | Deploy to production |
 
-## References
+## Resources
 
-See `references/common-errors.md` for detailed error messages and stack traces.
+- `scripts/deployment-health-check.ts` - Automated health check script
+- `references/common-errors.md` - Detailed error messages and stack traces
