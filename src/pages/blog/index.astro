@@ -9,6 +9,14 @@ import { db, BlogPosts, desc } from 'astro:db';
 export const prerender = false;
 
 const posts = await db.select().from(BlogPosts).orderBy(desc(BlogPosts.pubDate));
+
+// Helper to parse dates that could be Date, number, or string timestamp
+function parseDate(value: any): Date {
+	if (value instanceof Date) return value;
+	if (typeof value === 'number') return new Date(value);
+	const parsed = Number(value);
+	return isNaN(parsed) ? new Date(value) : new Date(parsed);
+}
 ---
 
 <!doctype html>
@@ -96,7 +104,7 @@ const posts = await db.select().from(BlogPosts).orderBy(desc(BlogPosts.pubDate))
 								<a href={`/blog/${post.slug}/`}>
 									<h4 class="title">{post.title}</h4>
 									<p class="date">
-										<FormattedDate date={new Date(post.pubDate)} />
+										<FormattedDate date={parseDate(post.pubDate)} />
 									</p>
 								</a>
 							</li>

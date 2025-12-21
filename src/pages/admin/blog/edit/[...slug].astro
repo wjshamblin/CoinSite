@@ -28,11 +28,27 @@ if (!post) {
 }
 
 const errors: Record<string, string> = {};
+
+// Handle pubDate - could be Date object, timestamp number, or timestamp string
+const pubDateValue = post.pubDate;
+let pubDateFormatted: string;
+if (pubDateValue instanceof Date) {
+	pubDateFormatted = pubDateValue.toISOString().split('T')[0];
+} else if (typeof pubDateValue === 'number') {
+	pubDateFormatted = new Date(pubDateValue).toISOString().split('T')[0];
+} else {
+	// String - could be ISO string or timestamp string
+	const parsed = Number(pubDateValue);
+	pubDateFormatted = isNaN(parsed)
+		? new Date(pubDateValue).toISOString().split('T')[0]
+		: new Date(parsed).toISOString().split('T')[0];
+}
+
 let formData = {
 	title: post.title,
 	description: post.description,
 	content: post.content,
-	pubDate: new Date(post.pubDate).toISOString().split('T')[0],
+	pubDate: pubDateFormatted,
 	heroImage: post.heroImage || ''
 };
 let successMessage = '';

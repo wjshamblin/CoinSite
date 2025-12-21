@@ -22,13 +22,24 @@ if (!post) {
 
 // Render markdown content to HTML
 const htmlContent = await marked(post.content);
+
+// Helper to parse dates that could be Date, number, or string timestamp
+function parseDate(value: any): Date {
+	if (value instanceof Date) return value;
+	if (typeof value === 'number') return new Date(value);
+	const parsed = Number(value);
+	return isNaN(parsed) ? new Date(value) : new Date(parsed);
+}
+
+const pubDate = parseDate(post.pubDate);
+const updatedDate = post.updatedDate ? parseDate(post.updatedDate) : undefined;
 ---
 
 <BlogPost
 	title={post.title}
 	description={post.description}
-	pubDate={new Date(post.pubDate)}
-	updatedDate={post.updatedDate ? new Date(post.updatedDate) : undefined}
+	pubDate={pubDate}
+	updatedDate={updatedDate}
 	heroImage={post.heroImage}
 >
 	<Fragment set:html={htmlContent} />

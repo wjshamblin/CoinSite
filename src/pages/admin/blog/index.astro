@@ -23,6 +23,14 @@ if (Astro.request.method === 'POST') {
 }
 
 const blogPosts = await db.select().from(BlogPosts).orderBy(desc(BlogPosts.pubDate));
+
+// Helper to parse dates that could be Date, number, or string timestamp
+function parseDate(value: any): Date {
+	if (value instanceof Date) return value;
+	if (typeof value === 'number') return new Date(value);
+	const parsed = Number(value);
+	return isNaN(parsed) ? new Date(value) : new Date(parsed);
+}
 ---
 
 <AdminLayout title="Blog Posts">
@@ -54,11 +62,11 @@ const blogPosts = await db.select().from(BlogPosts).orderBy(desc(BlogPosts.pubDa
 							<span class="description">{post.description}</span>
 						</td>
 						<td>
-							{new Date(post.pubDate).toLocaleDateString()}
+							{parseDate(post.pubDate).toLocaleDateString()}
 						</td>
 						<td>
 							{post.updatedDate
-								? new Date(post.updatedDate).toLocaleDateString()
+								? parseDate(post.updatedDate).toLocaleDateString()
 								: '-'
 							}
 						</td>
