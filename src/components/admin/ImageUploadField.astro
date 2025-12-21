@@ -1,0 +1,460 @@
+---
+/**
+ * Image Upload Field Component
+ *
+ * A complete image field with:
+ * - Drag & drop upload zone
+ * - File picker button
+ * - Upload to Vercel Blob
+ * - Preview of selected image
+ * - Browse existing images button
+ *
+ * Props:
+ * - inputId: The ID/name for the hidden input field
+ * - inputName: The form field name (defaults to inputId)
+ * - label: Label text for the field
+ * - required: Whether the field is required
+ * - imageType: 'coins' or 'collections' - determines upload path
+ * - initialValue: Initial image URL if editing
+ * - error: Error message to display
+ */
+import ImagePicker from './ImagePicker.astro';
+
+interface Props {
+  inputId: string;
+  inputName?: string;
+  label: string;
+  required?: boolean;
+  imageType: 'coins' | 'collections';
+  initialValue?: string;
+  error?: string;
+}
+
+const {
+  inputId,
+  inputName,
+  label,
+  required = false,
+  imageType,
+  initialValue = '',
+  error
+} = Astro.props;
+---
+
+<div class="image-upload-field" data-field-id={inputId}>
+  <label for={inputId}>{label} {required && '*'}</label>
+
+  <div class="upload-container">
+    <!-- Preview area -->
+    <div class="preview-area" id={`${inputId}-preview-area`}>
+      {initialValue ? (
+        <img
+          id={`${inputId}-preview`}
+          src={initialValue}
+          alt="Preview"
+          class="preview-image"
+        />
+      ) : (
+        <div id={`${inputId}-placeholder`} class="preview-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <span>No image selected</span>
+        </div>
+      )}
+      <img
+        id={`${inputId}-preview`}
+        src={initialValue}
+        alt="Preview"
+        class="preview-image"
+        style={initialValue ? '' : 'display: none;'}
+      />
+    </div>
+
+    <!-- Upload zone -->
+    <div class="upload-zone" id={`${inputId}-dropzone`}>
+      <div class="upload-zone-content">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p class="upload-text">Drag & drop an image here</p>
+        <p class="upload-subtext">or</p>
+        <div class="upload-buttons">
+          <label class="btn btn-primary upload-btn">
+            Choose File
+            <input
+              type="file"
+              id={`${inputId}-file`}
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+              class="file-input"
+              data-type={imageType}
+            />
+          </label>
+          <ImagePicker inputId={inputId} buttonText="Browse Existing" typeFilter={imageType} />
+        </div>
+      </div>
+      <div class="upload-progress" id={`${inputId}-progress`} style="display: none;">
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="progress-text">Uploading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden input for form submission -->
+  <input
+    type="hidden"
+    id={inputId}
+    name={inputName || inputId}
+    value={initialValue}
+    required={required}
+  />
+
+  <!-- Status message -->
+  <div class="upload-status" id={`${inputId}-status`}></div>
+
+  {error && <span class="error-text">{error}</span>}
+</div>
+
+<style>
+  .image-upload-field {
+    margin-bottom: 1.5rem;
+  }
+
+  .image-upload-field > label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #495057;
+  }
+
+  .upload-container {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .preview-area {
+    width: 150px;
+    height: 150px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .preview-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: #adb5bd;
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.75rem;
+  }
+
+  .preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .upload-zone {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.2s;
+    background: #fafafa;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .upload-zone.dragover {
+    border-color: #007bff;
+    background: #e7f1ff;
+  }
+
+  .upload-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .upload-zone svg {
+    color: #6c757d;
+  }
+
+  .upload-text {
+    margin: 0;
+    font-weight: 500;
+    color: #495057;
+  }
+
+  .upload-subtext {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.875rem;
+  }
+
+  .upload-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn:hover {
+    background: #0056b3;
+  }
+
+  .btn-primary {
+    background: #007bff;
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: #007bff;
+    border-color: #007bff;
+  }
+
+  .btn-outline:hover {
+    background: #007bff;
+    color: white;
+  }
+
+  .upload-btn {
+    cursor: pointer;
+  }
+
+  .file-input {
+    display: none;
+  }
+
+  .upload-progress {
+    width: 100%;
+  }
+
+  .progress-bar {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: #007bff;
+    width: 0%;
+    transition: width 0.3s;
+    animation: progress-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes progress-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .progress-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+  }
+
+  .upload-status {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .upload-status.success {
+    color: #28a745;
+  }
+
+  .upload-status.error {
+    color: #dc3545;
+  }
+
+  .error-text {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+  }
+
+  @media (max-width: 576px) {
+    .upload-container {
+      grid-template-columns: 1fr;
+    }
+
+    .preview-area {
+      width: 100%;
+      height: 200px;
+    }
+
+    .upload-buttons {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<script is:inline>
+(function() {
+  // Initialize all upload fields
+  document.querySelectorAll('.image-upload-field').forEach(initUploadField);
+
+  function initUploadField(field) {
+    const fieldId = field.dataset.fieldId;
+    const dropzone = field.querySelector(`#${fieldId}-dropzone`);
+    const fileInput = field.querySelector(`#${fieldId}-file`);
+    const hiddenInput = field.querySelector(`#${fieldId}`);
+    const previewImg = field.querySelector(`#${fieldId}-preview`);
+    const placeholder = field.querySelector(`#${fieldId}-placeholder`);
+    const progressEl = field.querySelector(`#${fieldId}-progress`);
+    const statusEl = field.querySelector(`#${fieldId}-status`);
+    const uploadContent = dropzone?.querySelector('.upload-zone-content');
+    const imageType = fileInput?.dataset.type;
+
+    if (!dropzone || !fileInput || !hiddenInput) return;
+
+    // Drag and drop handlers
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropzone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropzone.addEventListener(eventName, () => dropzone.classList.add('dragover'));
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropzone.addEventListener(eventName, () => dropzone.classList.remove('dragover'));
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFile(files[0]);
+      }
+    });
+
+    // File input handler
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    // Listen for changes from ImagePicker
+    hiddenInput.addEventListener('input', updatePreview);
+    hiddenInput.addEventListener('change', updatePreview);
+
+    function updatePreview() {
+      const value = hiddenInput.value;
+      if (value && previewImg) {
+        previewImg.src = value;
+        previewImg.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+        statusEl.textContent = '';
+        statusEl.className = 'upload-status';
+      }
+    }
+
+    async function handleFile(file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        showStatus('Invalid file type. Please upload an image.', 'error');
+        return;
+      }
+
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showStatus('File too large. Maximum size is 5MB.', 'error');
+        return;
+      }
+
+      // Show progress
+      if (uploadContent) uploadContent.style.display = 'none';
+      if (progressEl) {
+        progressEl.style.display = 'block';
+        progressEl.querySelector('.progress-fill').style.width = '30%';
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('files', file);
+        formData.append('type', imageType);
+
+        const response = await fetch('/admin/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (progressEl) {
+          progressEl.querySelector('.progress-fill').style.width = '100%';
+        }
+
+        if (result.success && result.uploadedFiles.length > 0) {
+          const uploaded = result.uploadedFiles[0];
+          hiddenInput.value = uploaded.url;
+
+          if (previewImg) {
+            previewImg.src = uploaded.url;
+            previewImg.style.display = 'block';
+          }
+          if (placeholder) placeholder.style.display = 'none';
+
+          showStatus('Image uploaded successfully!', 'success');
+        } else {
+          const errorMsg = result.errors?.[0] || result.error || 'Upload failed';
+          showStatus(errorMsg, 'error');
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        showStatus('Upload failed. Please try again.', 'error');
+      } finally {
+        setTimeout(() => {
+          if (progressEl) progressEl.style.display = 'none';
+          if (uploadContent) uploadContent.style.display = 'flex';
+        }, 500);
+      }
+    }
+
+    function showStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = `upload-status ${type}`;
+    }
+  }
+})();
+</script>

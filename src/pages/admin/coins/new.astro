@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
+import ImageUploadField from '../../../components/admin/ImageUploadField.astro';
 export const prerender = false; // Enable server-side rendering for authentication
 
 import { db, Collections, Coins } from 'astro:db';
@@ -198,23 +199,14 @@ if (Astro.request.method === 'POST') {
 			</div>
 		</div>
 
-		<div class="form-group">
-			<label for="primaryImage">Primary Image Filename *</label>
-			<input
-				type="text"
-				id="primaryImage"
-				name="primaryImage"
-				value={formData.primaryImage}
-				placeholder="e.g. augustus-denarius-1.jpg"
-				required
-				class={errors.primaryImage ? 'error' : ''}
-			/>
-			<small>
-				Upload your image to <code>public/images/coins/</code> first, then enter the filename here.
-				This will be the main image shown in galleries.
-			</small>
-			{errors.primaryImage && <span class="error-text">{errors.primaryImage}</span>}
-		</div>
+		<ImageUploadField
+			inputId="primaryImage"
+			label="Primary Image"
+			required={true}
+			imageType="coins"
+			initialValue={formData.primaryImage}
+			error={errors.primaryImage}
+		/>
 
 		<div class="form-actions">
 			<button type="submit" class="btn btn-primary">
