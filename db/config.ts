@@ -80,6 +80,26 @@ const AdminSessions = defineTable({
   }
 });
 
+// Static pages table for editable content (about, landing, etc.)
+const Pages = defineTable({
+  columns: {
+    id: column.number({ primaryKey: true }),
+    slug: column.text({ unique: true }), // 'about', 'home', etc.
+    title: column.text(),
+    description: column.text({ optional: true }),
+    content: column.text(), // Markdown or HTML content
+    heroImage: column.text({ optional: true }), // Vercel Blob URL
+    metaTitle: column.text({ optional: true }), // SEO title
+    metaDescription: column.text({ optional: true }), // SEO description
+    isPublished: column.boolean({ default: true }),
+    updatedAt: column.date({ optional: true }),
+    createdAt: column.date({ default: new Date() }),
+  },
+  indexes: {
+    pageSlugIdx: { on: ['slug'], unique: true },
+  }
+});
+
 // Blog posts table
 const BlogPosts = defineTable({
   columns: {
@@ -106,6 +126,7 @@ export default defineDb({
     Images,
     AdminUsers,
     AdminSessions,
+    Pages,
     BlogPosts,
   }
 });

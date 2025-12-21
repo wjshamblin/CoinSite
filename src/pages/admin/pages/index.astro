@@ -1,0 +1,210 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { db, Pages } from 'astro:db';
+import { requireAuth, isRedirect } from '../../../lib/authMiddleware';
+
+export const prerender = false;
+
+// Check authentication
+const authResult = await requireAuth(Astro);
+if (isRedirect(authResult)) return authResult;
+const user = authResult;
+
+const pages = await db.select().from(Pages).orderBy(Pages.slug);
+---
+
+<AdminLayout title="Pages">
+	<div class="page-header">
+		<h1>Static Pages</h1>
+	</div>
+
+	<p class="page-description">
+		Edit the content of static pages like About and Home. Changes are reflected immediately on the live site.
+	</p>
+
+	<div class="pages-table">
+		<table>
+			<thead>
+				<tr>
+					<th>Title</th>
+					<th>Slug</th>
+					<th>Status</th>
+					<th>Updated</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				{pages.map((page) => (
+					<tr>
+						<td>
+							<strong>{page.title}</strong>
+						</td>
+						<td>
+							<code>/{page.slug === 'home' ? '' : page.slug}</code>
+						</td>
+						<td>
+							<span class={`status ${page.isPublished ? 'published' : 'draft'}`}>
+								{page.isPublished ? 'Published' : 'Draft'}
+							</span>
+						</td>
+						<td>
+							{page.updatedAt ? new Date(page.updatedAt).toLocaleDateString() : new Date(page.createdAt).toLocaleDateString()}
+						</td>
+						<td>
+							<div class="actions">
+								<a href={`/admin/pages/edit/${page.slug}`} class="btn btn-sm">Edit</a>
+								<a href={page.slug === 'home' ? '/' : `/${page.slug}`} target="_blank" class="btn btn-sm btn-outline">View</a>
+							</div>
+						</td>
+					</tr>
+				))}
+			</tbody>
+		</table>
+	</div>
+
+	{pages.length === 0 && (
+		<div class="empty-state">
+			<h3>No pages configured</h3>
+			<p>Run the seed script to create default pages.</p>
+		</div>
+	)}
+</AdminLayout>
+
+<style>
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0;
+		color: #495057;
+	}
+
+	.page-description {
+		color: #6c757d;
+		margin-bottom: 2rem;
+	}
+
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		text-decoration: none;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:hover {
+		background: #0056b3;
+	}
+
+	.btn-sm {
+		padding: 0.25rem 0.5rem;
+		font-size: 0.8rem;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline:hover {
+		background: #007bff;
+		color: white;
+	}
+
+	.pages-table {
+		background: white;
+		border-radius: 8px;
+		overflow: hidden;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	th,
+	td {
+		padding: 1rem;
+		text-align: left;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	th {
+		background: #f8f9fa;
+		font-weight: 600;
+		color: #495057;
+		font-size: 0.9rem;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+
+	tbody tr:hover {
+		background: #f8f9fa;
+	}
+
+	code {
+		background: #f8f9fa;
+		padding: 0.2rem 0.4rem;
+		border-radius: 3px;
+		font-size: 0.85rem;
+		color: #e83e8c;
+	}
+
+	.status {
+		display: inline-block;
+		padding: 0.25rem 0.5rem;
+		border-radius: 3px;
+		font-size: 0.8rem;
+		font-weight: 500;
+	}
+
+	.status.published {
+		background: #d4edda;
+		color: #155724;
+	}
+
+	.status.draft {
+		background: #fff3cd;
+		color: #856404;
+	}
+
+	.actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.empty-state {
+		text-align: center;
+		padding: 3rem;
+		color: #6c757d;
+	}
+
+	.empty-state h3 {
+		color: #495057;
+		margin-bottom: 0.5rem;
+	}
+
+	@media (max-width: 768px) {
+		.pages-table {
+			overflow-x: auto;
+		}
+
+		table {
+			min-width: 500px;
+		}
+	}
+</style>

@@ -1,76 +1,94 @@
 ---
-import AboutHeroImage from '../assets/lordmarcovan-profile.jpg';
-import Layout from '../layouts/BlogPost.astro';
+import Layout from '../layouts/Layout.astro';
+import { db, Pages, eq } from 'astro:db';
+import { marked } from 'marked';
+
+export const prerender = false;
+
+// Get page content from database
+const page = await db.select().from(Pages).where(eq(Pages.slug, 'about')).then(rows => rows[0]);
+
+// If page doesn't exist or isn't published, show 404
+if (!page || !page.isPublished) {
+	return Astro.redirect('/404');
+}
+
+// Convert markdown to HTML
+const contentHtml = await marked(page.content);
 ---
 
-<Layout
-	title="About the Collector"
-	description="Learn about the passionate numismatist behind this diverse coin collection"
-	pubDate={new Date('August 08 2021')}
-	heroImage={AboutHeroImage.src}
->
-	<h2>Welcome to My Numismatic Journey</h2>
-
-	<p>
-		Greetings, fellow coin enthusiasts! I'm a passionate collector with a deep love for numismatics that spans decades.
-		My journey into the world of coins began in childhood and has evolved into a lifelong pursuit of historical
-		treasures and monetary artifacts from around the globe.
-	</p>
-
-	<h3>My Collecting Philosophy</h3>
-
-	<p>
-		I believe in the philosophy of eclectic collecting - embracing diversity over specialization. While many collectors
-		focus on specific series or denominations, I find joy in the variety that comes from exploring different eras,
-		countries, and monetary systems. Each coin tells a story, and I'm fascinated by the historical narratives that
-		emerge from this diverse approach.
-	</p>
-
-	<p>
-		My collection spans ancient civilizations to modern commemoratives, including Roman denarii, medieval European
-		issues, American gold rush coins, and world coins from every continent. This eclectic approach has taught me
-		that there's beauty and historical significance to be found in unexpected places.
-	</p>
-
-	<h3>Metal Detecting Adventures</h3>
-
-	<p>
-		Beyond traditional numismatics, I'm an avid metal detectorist. There's something magical about discovering
-		coins that haven't seen daylight for centuries, especially during expeditions through the English countryside.
-		These detecting adventures have uncovered medieval hammered silver, ancient Roman coins, and other historical
-		artifacts that connect us directly to our ancestors.
-	</p>
-
-	<p>
-		The thrill of discovery never gets old - whether it's a perfectly preserved Roman antoninianus or a worn
-		medieval penny, each find represents a tangible link to the past and adds another chapter to our understanding
-		of monetary history.
-	</p>
-
-	<h3>Sharing Knowledge</h3>
-
-	<p>
-		I'm active in the numismatic community, sharing discoveries and insights through forums, blogs, and collecting
-		groups. I believe that knowledge grows when shared, and the coin collecting community has always been generous
-		with expertise and enthusiasm. Whether you're a seasoned collector or just starting your journey, there's
-		always something new to learn and discover.
-	</p>
-
-	<h3>The Collections</h3>
-
-	<p>
-		This website showcases several themed collections that represent different aspects of my numismatic interests:
-		from ancient civilizations and medieval Europe to modern commemoratives and world coins. Each collection
-		tells its own story and reflects different periods of monetary and cultural history.
-	</p>
-
-	<p>
-		I hope you enjoy exploring these collections as much as I've enjoyed assembling them. Feel free to reach out
-		if you have questions about any of the pieces or want to share your own collecting experiences. The joy of
-		numismatics is best when shared with fellow enthusiasts!
-	</p>
-
-	<p>
-		<em>Happy collecting!</em>
-	</p>
+<Layout title={page.metaTitle || page.title} description={page.metaDescription || page.description || ''}>
+	<article class="about-page">
+		{page.heroImage && (
+			<div class="hero-image">
+				<img src={page.heroImage} alt={page.title} />
+			</div>
+		)}
+		<div class="prose">
+			<h1>{page.title}</h1>
+			<div class="content" set:html={contentHtml} />
+		</div>
+	</article>
 </Layout>
+
+<style>
+	.about-page {
+		max-width: 900px;
+		margin: 0 auto;
+		padding: 2rem 1rem;
+	}
+
+	.hero-image {
+		margin-bottom: 2rem;
+	}
+
+	.hero-image img {
+		width: 100%;
+		max-height: 400px;
+		object-fit: cover;
+		border-radius: 12px;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+	}
+
+	.prose {
+		max-width: 720px;
+		margin: 0 auto;
+	}
+
+	.prose h1 {
+		margin-bottom: 1.5rem;
+		text-align: center;
+	}
+
+	.content :global(h2) {
+		margin-top: 2.5rem;
+		margin-bottom: 1rem;
+	}
+
+	.content :global(h3) {
+		margin-top: 2rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.content :global(p) {
+		margin-bottom: 1.25rem;
+		line-height: 1.8;
+	}
+
+	.content :global(em) {
+		font-style: italic;
+	}
+
+	.content :global(strong) {
+		font-weight: 600;
+	}
+
+	.content :global(ul), .content :global(ol) {
+		margin-bottom: 1.25rem;
+		padding-left: 1.5rem;
+	}
+
+	.content :global(li) {
+		margin-bottom: 0.5rem;
+	}
+</style>

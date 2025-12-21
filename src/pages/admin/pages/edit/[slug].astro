@@ -1,0 +1,415 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import ImageUploadField from '../../../../components/admin/ImageUploadField.astro';
+export const prerender = false;
+
+import { db, Pages, eq } from 'astro:db';
+import { requireAuth, isRedirect } from '../../../../lib/authMiddleware';
+import { generateCsrfToken, validateCsrfToken, getCsrfTokenFromRequest } from '../../../../lib/csrf';
+
+// Check authentication
+const authResult = await requireAuth(Astro);
+if (isRedirect(authResult)) return authResult;
+const user = authResult;
+
+const slug = Astro.params.slug;
+
+// Get existing page
+const page = await db.select().from(Pages).where(eq(Pages.slug, slug)).then(rows => rows[0]);
+
+if (!page) {
+	return Astro.redirect('/admin/pages');
+}
+
+const errors: Record<string, string> = {};
+let formData = {
+	title: page.title,
+	description: page.description || '',
+	content: page.content,
+	heroImage: page.heroImage || '',
+	metaTitle: page.metaTitle || '',
+	metaDescription: page.metaDescription || '',
+	isPublished: page.isPublished,
+};
+let csrfToken = generateCsrfToken();
+let successMessage = '';
+
+if (Astro.request.method === 'POST') {
+	try {
+		const data = await Astro.request.formData();
+
+		// Validate CSRF token
+		if (!validateCsrfToken(getCsrfTokenFromRequest(data))) {
+			errors.general = 'Invalid form submission. Please try again.';
+		} else {
+			formData = {
+				title: data.get('title') as string,
+				description: data.get('description') as string,
+				content: data.get('content') as string,
+				heroImage: data.get('heroImage') as string,
+				metaTitle: data.get('metaTitle') as string,
+				metaDescription: data.get('metaDescription') as string,
+				isPublished: data.get('isPublished') === 'on',
+			};
+
+			// Basic validation
+			if (!formData.title) errors.title = 'Title is required';
+			if (!formData.content) errors.content = 'Content is required';
+
+			// If no errors, update in database
+			if (Object.keys(errors).length === 0) {
+				await db.update(Pages).set({
+					title: formData.title,
+					description: formData.description || null,
+					content: formData.content,
+					heroImage: formData.heroImage || null,
+					metaTitle: formData.metaTitle || null,
+					metaDescription: formData.metaDescription || null,
+					isPublished: formData.isPublished,
+					updatedAt: new Date(),
+				}).where(eq(Pages.slug, slug));
+
+				successMessage = 'Page updated successfully!';
+			}
+		}
+	} catch (error) {
+		console.error('Error updating page:', error);
+		errors.general = 'An error occurred while updating the page';
+	}
+}
+---
+
+<AdminLayout title={`Edit Page: ${page.title}`}>
+	<div class="page-header">
+		<h1>Edit Page: {page.title}</h1>
+		<div class="header-actions">
+			<a href={page.slug === 'home' ? '/' : `/${page.slug}`} target="_blank" class="btn btn-outline">
+				View Live
+			</a>
+			<a href="/admin/pages" class="btn btn-outline">← Back to Pages</a>
+		</div>
+	</div>
+
+	{successMessage && (
+		<div class="alert alert-success">
+			{successMessage}
+		</div>
+	)}
+
+	{errors.general && (
+		<div class="alert alert-error">
+			{errors.general}
+		</div>
+	)}
+
+	<form method="POST" class="admin-form">
+		<input type="hidden" name="_csrf" value={csrfToken} />
+
+		<div class="form-row">
+			<div class="form-group">
+				<label for="title">Page Title *</label>
+				<input
+					type="text"
+					id="title"
+					name="title"
+					value={formData.title}
+					required
+					class={errors.title ? 'error' : ''}
+				/>
+				{errors.title && <span class="error-text">{errors.title}</span>}
+			</div>
+
+			<div class="form-group">
+				<label for="slug">Slug (read-only)</label>
+				<input
+					type="text"
+					id="slug"
+					value={page.slug}
+					disabled
+					class="disabled"
+				/>
+				<small>Page URL cannot be changed</small>
+			</div>
+		</div>
+
+		<div class="form-group">
+			<label for="description">Short Description</label>
+			<input
+				type="text"
+				id="description"
+				name="description"
+				value={formData.description}
+				placeholder="Brief description for the page"
+			/>
+		</div>
+
+		<div class="form-group">
+			<label for="content">Page Content (Markdown) *</label>
+			<textarea
+				id="content"
+				name="content"
+				rows="20"
+				required
+				class={errors.content ? 'error' : ''}
+			>{formData.content}</textarea>
+			{errors.content && <span class="error-text">{errors.content}</span>}
+			<small>Use Markdown formatting for headings, lists, links, etc.</small>
+		</div>
+
+		<ImageUploadField
+			inputId="heroImage"
+			label="Hero Image"
+			required={false}
+			imageType="collections"
+			initialValue={formData.heroImage}
+		/>
+
+		<div class="form-section">
+			<h3>SEO Settings</h3>
+			<div class="form-row">
+				<div class="form-group">
+					<label for="metaTitle">Meta Title</label>
+					<input
+						type="text"
+						id="metaTitle"
+						name="metaTitle"
+						value={formData.metaTitle}
+						placeholder="Custom title for search engines"
+					/>
+					<small>Leave blank to use page title</small>
+				</div>
+
+				<div class="form-group">
+					<label for="metaDescription">Meta Description</label>
+					<input
+						type="text"
+						id="metaDescription"
+						name="metaDescription"
+						value={formData.metaDescription}
+						placeholder="Description for search engines"
+					/>
+				</div>
+			</div>
+		</div>
+
+		<div class="form-group checkbox-group">
+			<label>
+				<input
+					type="checkbox"
+					name="isPublished"
+					checked={formData.isPublished}
+				/>
+				Published
+			</label>
+			<small>Unpublished pages are not visible to visitors</small>
+		</div>
+
+		<div class="form-actions">
+			<button type="submit" class="btn btn-primary">
+				Save Changes
+			</button>
+			<a href="/admin/pages" class="btn btn-outline">
+				Cancel
+			</a>
+		</div>
+	</form>
+</AdminLayout>
+
+<style>
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0;
+		color: #495057;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		text-decoration: none;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:hover {
+		background: #0056b3;
+	}
+
+	.btn-primary {
+		background: #007bff;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline:hover {
+		background: #007bff;
+		color: white;
+	}
+
+	.admin-form {
+		background: white;
+		padding: 2rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+	}
+
+	.form-group {
+		margin-bottom: 1.5rem;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+		color: #495057;
+	}
+
+	.form-group input,
+	.form-group textarea {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #ced4da;
+		border-radius: 4px;
+		font-size: 1rem;
+		font-family: inherit;
+		transition: border-color 0.2s;
+	}
+
+	.form-group textarea {
+		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+		font-size: 0.9rem;
+		line-height: 1.5;
+	}
+
+	.form-group input:focus,
+	.form-group textarea:focus {
+		outline: none;
+		border-color: #007bff;
+		box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+	}
+
+	.form-group input.error,
+	.form-group textarea.error {
+		border-color: #dc3545;
+	}
+
+	.form-group input.disabled {
+		background: #e9ecef;
+		cursor: not-allowed;
+	}
+
+	.form-group small {
+		display: block;
+		margin-top: 0.25rem;
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+
+	.error-text {
+		color: #dc3545;
+		font-size: 0.875rem;
+		margin-top: 0.25rem;
+		display: block;
+	}
+
+	.alert {
+		padding: 1rem;
+		border-radius: 4px;
+		margin-bottom: 1.5rem;
+	}
+
+	.alert-success {
+		background: #d4edda;
+		color: #155724;
+		border: 1px solid #c3e6cb;
+	}
+
+	.alert-error {
+		background: #f8d7da;
+		color: #721c24;
+		border: 1px solid #f5c6cb;
+	}
+
+	.form-section {
+		margin-top: 2rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid #dee2e6;
+	}
+
+	.form-section h3 {
+		margin-top: 0;
+		margin-bottom: 1rem;
+		color: #495057;
+		font-size: 1.1rem;
+	}
+
+	.checkbox-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.checkbox-group label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-weight: normal;
+		cursor: pointer;
+	}
+
+	.checkbox-group input[type="checkbox"] {
+		width: auto;
+		margin: 0;
+	}
+
+	.form-actions {
+		display: flex;
+		gap: 1rem;
+		margin-top: 2rem;
+		padding-top: 1rem;
+		border-top: 1px solid #dee2e6;
+	}
+
+	@media (max-width: 768px) {
+		.page-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 1rem;
+		}
+
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+
+		.form-actions {
+			flex-direction: column;
+		}
+	}
+</style>
