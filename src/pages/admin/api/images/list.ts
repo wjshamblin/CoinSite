@@ -5,8 +5,8 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ cookies, url }) => {
   // Check authentication
-  const session = cookies.get('session')?.value;
-  if (!session) {
+  const sessionToken = cookies.get('admin_session')?.value;
+  if (!sessionToken) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
