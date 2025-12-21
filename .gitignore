@@ -30,3 +30,4 @@ db.sqlite
 # temporary/test files
 X/
 scripts/*.mjs
+.env*.local
