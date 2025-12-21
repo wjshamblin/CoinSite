@@ -1,6 +1,6 @@
 ---
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
-import ImagePicker from '../../../../components/admin/ImagePicker.astro';
+import ImageUploadField from '../../../../components/admin/ImageUploadField.astro';
 import { getImageUrl } from '../../../../lib/images';
 export const prerender = false; // Enable server-side rendering for authentication
 
@@ -233,29 +233,14 @@ if (Astro.request.method === 'POST') {
 					>
 				</div>
 
-				<div class="form-group">
-					<label for="primaryImage">Primary Image *</label>
-					<div class="primary-image-preview">
-						<img
-							id="primaryImage-preview"
-							src={getImageUrl(formData.primaryImage, 'coins')}
-							alt="Primary image preview"
-						/>
-					</div>
-					<div class="input-with-picker">
-						<input
-							type="text"
-							id="primaryImage"
-							name="primaryImage"
-							value={formData.primaryImage}
-							required
-							class={errors.primaryImage ? 'error' : ''}
-							placeholder="Select an image"
-						>
-						<ImagePicker inputId="primaryImage" buttonText="Browse" typeFilter="coins" />
-					</div>
-					{errors.primaryImage && <span class="error-text">{errors.primaryImage}</span>}
-				</div>
+				<ImageUploadField
+					inputId="primaryImage"
+					label="Primary Image"
+					required={true}
+					imageType="coins"
+					initialValue={formData.primaryImage}
+					error={errors.primaryImage}
+				/>
 
 				<button type="submit" class="btn btn-primary">Update Coin</button>
 			</form>
@@ -275,31 +260,23 @@ if (Astro.request.method === 'POST') {
 					<input type="hidden" name="_csrf" value={csrfToken} />
 					<input type="hidden" name="action" value="addImage">
 
-					<div class="form-row">
-						<div class="form-group">
-							<label for="filename">Image *</label>
-							<div class="input-with-picker">
-								<input
-									type="text"
-									id="filename"
-									name="filename"
-									required
-									placeholder="Select an image"
-								>
-								<ImagePicker inputId="filename" buttonText="Browse" typeFilter="coins" />
-							</div>
-						</div>
+					<ImageUploadField
+						inputId="filename"
+						inputName="filename"
+						label="Image"
+						required={true}
+						imageType="coins"
+					/>
 
-						<div class="form-group">
-							<label for="title">Image Title *</label>
-							<input
-								type="text"
-								id="title"
-								name="title"
-								required
-								placeholder="e.g., Obverse, Reverse, Edge"
-							>
-						</div>
+					<div class="form-group">
+						<label for="title">Image Title *</label>
+						<input
+							type="text"
+							id="title"
+							name="title"
+							required
+							placeholder="e.g., Obverse, Reverse, Edge"
+						>
 					</div>
 
 					<div class="form-row">
@@ -662,28 +639,6 @@ if (Astro.request.method === 'POST') {
 		border: 2px dashed #dee2e6;
 	}
 
-	.input-with-picker {
-		display: flex;
-		gap: 0.5rem;
-		align-items: stretch;
-	}
-
-	.input-with-picker input {
-		flex: 1;
-	}
-
-	.primary-image-preview {
-		margin-bottom: 0.75rem;
-	}
-
-	.primary-image-preview img {
-		max-width: 150px;
-		max-height: 150px;
-		border-radius: 8px;
-		border: 2px solid #dee2e6;
-		object-fit: cover;
-	}
-
 	@media (max-width: 768px) {
 		.page-header {
 			flex-direction: column;
@@ -701,17 +656,3 @@ if (Astro.request.method === 'POST') {
 	}
 </style>
 
-<script is:inline>
-	// Update primary image preview when input changes
-	document.getElementById('primaryImage')?.addEventListener('input', function(e) {
-		const value = e.target.value;
-		const preview = document.getElementById('primaryImage-preview');
-		if (preview) {
-			if (value.startsWith('http://') || value.startsWith('https://')) {
-				preview.src = value;
-			} else {
-				preview.src = '/images/coins/' + value;
-			}
-		}
-	});
-</script>
