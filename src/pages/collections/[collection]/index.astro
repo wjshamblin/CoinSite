@@ -1,8 +1,8 @@
 ---
 // Collection detail page - shows gallery of all coins in a collection
 import Layout from '../../../layouts/Layout.astro';
-import { Image } from 'astro:assets';
 import { db, Collections, Coins, eq } from 'astro:db';
+import { getImageUrl } from '../../../lib/images';
 
 export const prerender = false;
 
@@ -40,11 +40,11 @@ const coins = await db
 		<div class="coins-grid">
 			{coins.map((coin) => (
 				<a href={`/collections/${collection.slug}/${coin.slug}`} class="coin-card">
-					<Image
-						src={`/images/coins/${coin.primaryImage}`}
+					<img
+						src={getImageUrl(coin.primaryImage, 'coins')}
 						alt={coin.name}
-						width={300}
-						height={200}
+						width="300"
+						height="200"
 						class="coin-image"
 						loading="lazy"
 					/>

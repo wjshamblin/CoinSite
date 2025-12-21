@@ -2,17 +2,22 @@
 // Collections index page - shows thumbnail gallery of all collections
 import Layout from '../../layouts/Layout.astro';
 import { db, Collections } from 'astro:db';
+import { getImageUrl } from '../../lib/images';
 
 const collections = await db.select().from(Collections);
 
-// Helper to get correct image path
+// Helper to get correct image path - handles blob URLs and legacy paths
 function getThumbnailPath(thumbnail: string): string {
+	// If it's a full URL (blob storage), return as-is
+	if (thumbnail.startsWith('http://') || thumbnail.startsWith('https://')) {
+		return thumbnail;
+	}
 	// If thumbnail starts with 'coins/', it's in the coins folder
 	if (thumbnail.startsWith('coins/')) {
 		return `/images/${thumbnail}`;
 	}
 	// Otherwise it's in the collections folder
-	return `/images/collections/${thumbnail}`;
+	return getImageUrl(thumbnail, 'collections');
 }
 ---
 

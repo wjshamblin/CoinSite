@@ -1,8 +1,8 @@
 ---
 // Individual coin page - shows all 5 images with titles for a specific coin
 import Layout from '../../../../layouts/Layout.astro';
-import { Image } from 'astro:assets';
 import { db, Collections, Coins, Images, eq, and } from 'astro:db';
+import { getImageUrl } from '../../../../lib/images';
 
 export const prerender = false;
 
@@ -77,15 +77,15 @@ const images = await db
 			{images.map((image) => (
 				<figure class="image-card">
 					<div class="image-wrapper">
-						<Image
-							src={`/images/coins/${image.filename}`}
+						<img
+							src={getImageUrl(image.filename, 'coins')}
 							alt={image.alt}
-							width={500}
-							height={400}
+							width="500"
+							height="400"
 							class="coin-image"
 							loading="lazy"
 						/>
-						<button class="zoom-btn" aria-label="Zoom image" data-image={`/images/coins/${image.filename}`}>
+						<button class="zoom-btn" aria-label="Zoom image" data-image={getImageUrl(image.filename, 'coins')}>
 							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 								<circle cx="11" cy="11" r="8"/>
 								<path d="m21 21-4.35-4.35"/>

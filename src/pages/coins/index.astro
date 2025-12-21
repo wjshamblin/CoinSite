@@ -1,8 +1,8 @@
 ---
 // All Coins page - shows every coin from all collections
 import Layout from '../../layouts/Layout.astro';
-import { Image } from 'astro:assets';
 import { db, Collections, Coins, Images, eq } from 'astro:db';
+import { getImageUrl } from '../../lib/images';
 
 export const prerender = false;
 
@@ -53,11 +53,11 @@ for (const coin of allCoins) {
 				<a href={`/collections/${coin.collectionSlug}/${coin.slug}`} class="coin-card">
 					<div class="card-image-wrapper">
 						{image ? (
-							<Image
-								src={`/images/coins/${image.filename}`}
+							<img
+								src={getImageUrl(image.filename, 'coins')}
 								alt={coin.name}
-								width={300}
-								height={240}
+								width="300"
+								height="240"
 								class="card-image"
 								loading="lazy"
 							/>

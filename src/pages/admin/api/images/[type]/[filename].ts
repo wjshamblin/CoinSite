@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
-import { unlink } from 'node:fs/promises';
-import { join } from 'node:path';
+import { del, list } from '@vercel/blob';
 
 export const prerender = false;
 
@@ -41,25 +40,42 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
       });
     }
 
-    // Construct the file path
-    const imagePath = join(process.cwd(), 'public', 'images', type, sanitizedFilename);
+    // Construct the blob pathname
+    const pathname = `${type}/${sanitizedFilename}`;
 
     try {
-      await unlink(imagePath);
+      // List blobs to find the full URL for this pathname
+      const { blobs } = await list({ prefix: pathname });
+
+      if (blobs.length > 0) {
+        // Delete the blob by its URL
+        await del(blobs[0].url);
+        return new Response(JSON.stringify({
+          success: true,
+          message: `Image "${sanitizedFilename}" deleted from blob storage`
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } else {
+        // Blob not found - might be a static image from git
+        // Can't delete static files on Vercel, but return success
+        // since the user wants it "removed" from the listing
+        return new Response(JSON.stringify({
+          success: true,
+          message: `Image "${sanitizedFilename}" not found in blob storage (may be a static asset)`
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    } catch (blobError) {
+      console.error('Blob delete error:', blobError);
       return new Response(JSON.stringify({
-        success: true,
-        message: `Image "${sanitizedFilename}" deleted successfully`
+        error: 'Failed to delete image from blob storage',
+        details: blobError instanceof Error ? blobError.message : 'Unknown error'
       }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    } catch (unlinkError) {
-      // File doesn't exist or can't be deleted
-      return new Response(JSON.stringify({
-        error: 'Image not found or could not be deleted',
-        details: unlinkError instanceof Error ? unlinkError.message : 'Unknown error'
-      }), {
-        status: 404,
+        status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }

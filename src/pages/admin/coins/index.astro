@@ -2,6 +2,7 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { db, Collections, Coins, eq } from 'astro:db';
 import { requireAuth, isRedirect } from '../../../lib/authMiddleware';
+import { getImageUrl } from '../../../lib/images';
 
 export const prerender = false; // Enable server-side rendering for authentication
 
@@ -47,7 +48,7 @@ const coins = await db
 						<td>
 							<div class="coin-image">
 								<img
-									src={`/images/coins/${coin.primaryImage}`}
+									src={getImageUrl(coin.primaryImage, 'coins')}
 									alt={coin.name}
 									onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
 								/>

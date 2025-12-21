@@ -1,11 +1,19 @@
 import type { APIRoute } from 'astro';
-import { writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { put } from '@vercel/blob';
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   try {
+    // Check for session cookie (basic auth check)
+    const sessionToken = cookies.get('admin_session')?.value;
+    if (!sessionToken) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
     const type = formData.get('type') as string; // 'collections' or 'coins'
@@ -24,17 +32,8 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    const uploadDir = join(process.cwd(), 'public', 'images', type);
-
-    // Ensure directory exists
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (error) {
-      // Directory might already exist
-    }
-
-    const uploadedFiles = [];
-    const errors = [];
+    const uploadedFiles: Array<{ filename: string; url: string }> = [];
+    const errors: string[] = [];
 
     for (const file of files) {
       if (!(file instanceof File)) continue;
@@ -54,16 +53,24 @@ export const POST: APIRoute = async ({ request }) => {
       }
 
       try {
-        const fileName = file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '-');
-        const filePath = join(uploadDir, fileName);
+        // Sanitize filename
+        const filename = file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '-');
+        // Create path like: coins/coin-name.png or collections/collection-name.png
+        const pathname = `${type}/${filename}`;
 
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        // Upload to Vercel Blob
+        const blob = await put(pathname, file, {
+          access: 'public',
+          addRandomSuffix: false, // Keep the original filename
+        });
 
-        await writeFile(filePath, buffer);
-        uploadedFiles.push(fileName);
+        uploadedFiles.push({
+          filename,
+          url: blob.url
+        });
       } catch (error) {
-        errors.push(`${file.name}: Failed to save file.`);
+        console.error(`Upload error for ${file.name}:`, error);
+        errors.push(`${file.name}: Failed to upload file.`);
       }
     }
 
@@ -79,7 +86,10 @@ export const POST: APIRoute = async ({ request }) => {
 
   } catch (error) {
     console.error('Upload error:', error);
-    return new Response(JSON.stringify({ error: 'Upload failed' }), {
+    return new Response(JSON.stringify({
+      error: 'Upload failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

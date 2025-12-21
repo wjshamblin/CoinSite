@@ -1,4 +1,6 @@
 ---
+import { getImageUrl } from '../lib/images';
+
 export interface Props {
 	coins: Array<{
 		image: string;
@@ -17,7 +19,7 @@ const { coins } = Astro.props;
 			<div class={`slide ${index === 0 ? 'active' : ''}`} data-slide={index}>
 				<div class="slide-content">
 					<div class="slide-image">
-						<img src={`/images/coins/${coin.image}`} alt={coin.title} loading="lazy" />
+						<img src={getImageUrl(coin.image, 'coins')} alt={coin.title} loading="lazy" />
 					</div>
 					<div class="slide-info">
 						<h3>{coin.title}</h3>
