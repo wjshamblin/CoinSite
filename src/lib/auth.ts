@@ -224,3 +224,223 @@ export async function getUserById(userId: number): Promise<AuthUser | null> {
     return null;
   }
 }
+
+// Extended user info for admin management
+export interface AdminUserDetails {
+  id: number;
+  username: string;
+  email: string | null;
+  isActive: boolean;
+  lastLogin: Date | null;
+  createdAt: Date;
+}
+
+/**
+ * Get all admin users
+ */
+export async function getAllUsers(): Promise<AdminUserDetails[]> {
+  try {
+    const users = await db
+      .select()
+      .from(AdminUsers)
+      .orderBy(AdminUsers.createdAt);
+
+    return users.map(u => ({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      isActive: u.isActive,
+      lastLogin: u.lastLogin,
+      createdAt: u.createdAt,
+    }));
+  } catch (error) {
+    authLogger.error('Error getting all users', { error: String(error) });
+    return [];
+  }
+}
+
+/**
+ * Create a new admin user
+ */
+export async function createUser(
+  username: string,
+  password: string,
+  email?: string
+): Promise<{ success: boolean; error?: string; userId?: number }> {
+  try {
+    // Check if username already exists
+    const existing = await db
+      .select()
+      .from(AdminUsers)
+      .where(eq(AdminUsers.username, username))
+      .then(rows => rows[0]);
+
+    if (existing) {
+      return { success: false, error: 'Username already exists' };
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Get the next ID
+    const maxIdResult = await db
+      .select({ maxId: AdminUsers.id })
+      .from(AdminUsers)
+      .orderBy(AdminUsers.id)
+      .then(rows => rows[rows.length - 1]);
+    const nextId = (maxIdResult?.maxId || 0) + 1;
+
+    // Insert new user
+    await db.insert(AdminUsers).values({
+      id: nextId,
+      username,
+      passwordHash,
+      email: email || null,
+      isActive: true,
+      createdAt: new Date(),
+    });
+
+    authLogger.info('New admin user created', { username });
+    return { success: true, userId: nextId };
+  } catch (error) {
+    authLogger.error('Error creating user', { error: String(error), username });
+    return { success: false, error: 'An error occurred while creating user' };
+  }
+}
+
+/**
+ * Delete an admin user (cannot delete the last active user)
+ */
+export async function deleteUser(
+  userId: number,
+  currentUserId: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Cannot delete yourself
+    if (userId === currentUserId) {
+      return { success: false, error: 'Cannot delete your own account' };
+    }
+
+    // Check if this is the last active user
+    const activeUsers = await db
+      .select()
+      .from(AdminUsers)
+      .where(eq(AdminUsers.isActive, true));
+
+    const userToDelete = await db
+      .select()
+      .from(AdminUsers)
+      .where(eq(AdminUsers.id, userId))
+      .then(rows => rows[0]);
+
+    if (!userToDelete) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // If deleting an active user and it's the last one, prevent deletion
+    if (userToDelete.isActive && activeUsers.length <= 1) {
+      return { success: false, error: 'Cannot delete the last active administrator' };
+    }
+
+    // Delete all sessions for this user first
+    await db.delete(AdminSessions).where(eq(AdminSessions.userId, userId));
+
+    // Delete the user
+    await db.delete(AdminUsers).where(eq(AdminUsers.id, userId));
+
+    authLogger.info('Admin user deleted', { deletedUserId: userId, byUserId: currentUserId });
+    return { success: true };
+  } catch (error) {
+    authLogger.error('Error deleting user', { error: String(error), userId });
+    return { success: false, error: 'An error occurred while deleting user' };
+  }
+}
+
+/**
+ * Toggle user active status
+ */
+export async function toggleUserActive(
+  userId: number,
+  currentUserId: number
+): Promise<{ success: boolean; error?: string; isActive?: boolean }> {
+  try {
+    const user = await db
+      .select()
+      .from(AdminUsers)
+      .where(eq(AdminUsers.id, userId))
+      .then(rows => rows[0]);
+
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // If deactivating
+    if (user.isActive) {
+      // Cannot deactivate yourself
+      if (userId === currentUserId) {
+        return { success: false, error: 'Cannot deactivate your own account' };
+      }
+
+      // Check if this is the last active user
+      const activeUsers = await db
+        .select()
+        .from(AdminUsers)
+        .where(eq(AdminUsers.isActive, true));
+
+      if (activeUsers.length <= 1) {
+        return { success: false, error: 'Cannot deactivate the last active administrator' };
+      }
+
+      // Delete sessions when deactivating
+      await db.delete(AdminSessions).where(eq(AdminSessions.userId, userId));
+    }
+
+    const newStatus = !user.isActive;
+    await db
+      .update(AdminUsers)
+      .set({ isActive: newStatus })
+      .where(eq(AdminUsers.id, userId));
+
+    authLogger.info('Admin user status toggled', { userId, isActive: newStatus });
+    return { success: true, isActive: newStatus };
+  } catch (error) {
+    authLogger.error('Error toggling user status', { error: String(error), userId });
+    return { success: false, error: 'An error occurred while updating user status' };
+  }
+}
+
+/**
+ * Admin reset password (sets a new password without requiring current password)
+ */
+export async function adminResetPassword(
+  userId: number,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await db
+      .select()
+      .from(AdminUsers)
+      .where(eq(AdminUsers.id, userId))
+      .then(rows => rows[0]);
+
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await db
+      .update(AdminUsers)
+      .set({ passwordHash })
+      .where(eq(AdminUsers.id, userId));
+
+    // Invalidate all sessions for this user
+    await db.delete(AdminSessions).where(eq(AdminSessions.userId, userId));
+
+    authLogger.info('Password reset by admin', { userId });
+    return { success: true };
+  } catch (error) {
+    authLogger.error('Error resetting password', { error: String(error), userId });
+    return { success: false, error: 'An error occurred while resetting password' };
+  }
+}

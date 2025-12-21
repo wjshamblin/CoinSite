@@ -1,0 +1,626 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+export const prerender = false;
+
+import { requireAuth, isRedirect } from '../../../lib/authMiddleware';
+import {
+	getAllUsers,
+	createUser,
+	deleteUser,
+	toggleUserActive,
+	adminResetPassword,
+	type AdminUserDetails
+} from '../../../lib/auth';
+import { generateCsrfToken, validateCsrfToken, getCsrfTokenFromRequest } from '../../../lib/csrf';
+
+// Check authentication
+const authResult = await requireAuth(Astro);
+if (isRedirect(authResult)) return authResult;
+const currentUser = authResult;
+
+const errors: Record<string, string> = {};
+let successMessage = '';
+let csrfToken = generateCsrfToken();
+
+if (Astro.request.method === 'POST') {
+	try {
+		const data = await Astro.request.formData();
+
+		// Validate CSRF token
+		if (!validateCsrfToken(getCsrfTokenFromRequest(data))) {
+			errors.general = 'Invalid form submission. Please try again.';
+		} else {
+			const action = data.get('action') as string;
+
+			if (action === 'createUser') {
+				const username = (data.get('username') as string)?.trim();
+				const password = data.get('password') as string;
+				const confirmPassword = data.get('confirmPassword') as string;
+				const email = (data.get('email') as string)?.trim();
+
+				// Validation
+				if (!username) {
+					errors.username = 'Username is required';
+				} else if (username.length < 3) {
+					errors.username = 'Username must be at least 3 characters';
+				} else if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+					errors.username = 'Username can only contain letters, numbers, underscores, and hyphens';
+				}
+
+				if (!password) {
+					errors.password = 'Password is required';
+				} else if (password.length < 8) {
+					errors.password = 'Password must be at least 8 characters';
+				}
+
+				if (password !== confirmPassword) {
+					errors.confirmPassword = 'Passwords do not match';
+				}
+
+				if (email && !email.includes('@')) {
+					errors.email = 'Please enter a valid email address';
+				}
+
+				if (Object.keys(errors).length === 0) {
+					const result = await createUser(username, password, email || undefined);
+					if (result.success) {
+						successMessage = `User "${username}" created successfully!`;
+					} else {
+						errors.username = result.error || 'Failed to create user';
+					}
+				}
+			} else if (action === 'deleteUser') {
+				const userId = parseInt(data.get('userId') as string);
+				if (userId) {
+					const result = await deleteUser(userId, currentUser.id);
+					if (result.success) {
+						successMessage = 'User deleted successfully';
+					} else {
+						errors.general = result.error || 'Failed to delete user';
+					}
+				}
+			} else if (action === 'toggleActive') {
+				const userId = parseInt(data.get('userId') as string);
+				if (userId) {
+					const result = await toggleUserActive(userId, currentUser.id);
+					if (result.success) {
+						successMessage = result.isActive ? 'User activated' : 'User deactivated';
+					} else {
+						errors.general = result.error || 'Failed to update user status';
+					}
+				}
+			} else if (action === 'resetPassword') {
+				const userId = parseInt(data.get('userId') as string);
+				const newPassword = data.get('newPassword') as string;
+
+				if (!newPassword || newPassword.length < 8) {
+					errors.general = 'New password must be at least 8 characters';
+				} else {
+					const result = await adminResetPassword(userId, newPassword);
+					if (result.success) {
+						successMessage = 'Password reset successfully. User will need to log in again.';
+					} else {
+						errors.general = result.error || 'Failed to reset password';
+					}
+				}
+			}
+		}
+	} catch (error) {
+		console.error('User management error:', error);
+		errors.general = 'An error occurred. Please try again.';
+	}
+}
+
+// Get all users
+const users = await getAllUsers();
+---
+
+<AdminLayout title="User Management">
+	<div class="page-header">
+		<h1>User Management</h1>
+		<p class="subtitle">Manage administrator accounts</p>
+	</div>
+
+	{successMessage && (
+		<div class="alert alert-success">
+			{successMessage}
+		</div>
+	)}
+
+	{errors.general && (
+		<div class="alert alert-error">
+			{errors.general}
+		</div>
+	)}
+
+	<div class="users-container">
+		<!-- Create New User Section -->
+		<section class="card">
+			<h2>Add New Administrator</h2>
+			<form method="POST" class="user-form">
+				<input type="hidden" name="_csrf" value={csrfToken} />
+				<input type="hidden" name="action" value="createUser" />
+
+				<div class="form-row">
+					<div class="form-group">
+						<label for="username">Username *</label>
+						<input
+							type="text"
+							id="username"
+							name="username"
+							required
+							minlength="3"
+							pattern="^[a-zA-Z0-9_-]+$"
+							placeholder="username"
+							class={errors.username ? 'error' : ''}
+						/>
+						{errors.username && <span class="error-text">{errors.username}</span>}
+					</div>
+
+					<div class="form-group">
+						<label for="email">Email (optional)</label>
+						<input
+							type="email"
+							id="email"
+							name="email"
+							placeholder="admin@example.com"
+							class={errors.email ? 'error' : ''}
+						/>
+						{errors.email && <span class="error-text">{errors.email}</span>}
+					</div>
+				</div>
+
+				<div class="form-row">
+					<div class="form-group">
+						<label for="password">Password *</label>
+						<input
+							type="password"
+							id="password"
+							name="password"
+							required
+							minlength="8"
+							class={errors.password ? 'error' : ''}
+						/>
+						<small>At least 8 characters</small>
+						{errors.password && <span class="error-text">{errors.password}</span>}
+					</div>
+
+					<div class="form-group">
+						<label for="confirmPassword">Confirm Password *</label>
+						<input
+							type="password"
+							id="confirmPassword"
+							name="confirmPassword"
+							required
+							class={errors.confirmPassword ? 'error' : ''}
+						/>
+						{errors.confirmPassword && <span class="error-text">{errors.confirmPassword}</span>}
+					</div>
+				</div>
+
+				<button type="submit" class="btn btn-primary">Create User</button>
+			</form>
+		</section>
+
+		<!-- Users List Section -->
+		<section class="card">
+			<h2>Current Administrators ({users.length})</h2>
+
+			<div class="users-table-container">
+				<table class="users-table">
+					<thead>
+						<tr>
+							<th>Username</th>
+							<th>Email</th>
+							<th>Status</th>
+							<th>Last Login</th>
+							<th>Created</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						{users.map((user) => (
+							<tr class={!user.isActive ? 'inactive' : ''}>
+								<td>
+									<strong>{user.username}</strong>
+									{user.id === currentUser.id && <span class="badge badge-current">You</span>}
+								</td>
+								<td>{user.email || <span class="text-muted">Not set</span>}</td>
+								<td>
+									<span class={`badge ${user.isActive ? 'badge-active' : 'badge-inactive'}`}>
+										{user.isActive ? 'Active' : 'Inactive'}
+									</span>
+								</td>
+								<td>
+									{user.lastLogin
+										? new Date(user.lastLogin).toLocaleDateString('en-US', {
+												year: 'numeric',
+												month: 'short',
+												day: 'numeric',
+												hour: '2-digit',
+												minute: '2-digit'
+											})
+										: <span class="text-muted">Never</span>
+									}
+								</td>
+								<td>
+									{new Date(user.createdAt).toLocaleDateString('en-US', {
+										year: 'numeric',
+										month: 'short',
+										day: 'numeric'
+									})}
+								</td>
+								<td class="actions-cell">
+									{user.id !== currentUser.id ? (
+										<div class="action-buttons">
+											<form method="POST" class="inline-form">
+												<input type="hidden" name="_csrf" value={csrfToken} />
+												<input type="hidden" name="action" value="toggleActive" />
+												<input type="hidden" name="userId" value={user.id} />
+												<button type="submit" class={`btn btn-sm ${user.isActive ? 'btn-warning' : 'btn-success'}`}>
+													{user.isActive ? 'Deactivate' : 'Activate'}
+												</button>
+											</form>
+
+											<button
+												type="button"
+												class="btn btn-sm btn-outline"
+												onclick={`showResetPasswordModal(${user.id}, '${user.username}')`}
+											>
+												Reset Password
+											</button>
+
+											<form method="POST" class="inline-form" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.')">
+												<input type="hidden" name="_csrf" value={csrfToken} />
+												<input type="hidden" name="action" value="deleteUser" />
+												<input type="hidden" name="userId" value={user.id} />
+												<button type="submit" class="btn btn-sm btn-danger">Delete</button>
+											</form>
+										</div>
+									) : (
+										<span class="text-muted">-</span>
+									)}
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</div>
+
+	<!-- Reset Password Modal -->
+	<div id="resetPasswordModal" class="modal">
+		<div class="modal-content">
+			<h3>Reset Password</h3>
+			<p>Resetting password for: <strong id="resetPasswordUsername"></strong></p>
+			<form method="POST" id="resetPasswordForm">
+				<input type="hidden" name="_csrf" value={csrfToken} />
+				<input type="hidden" name="action" value="resetPassword" />
+				<input type="hidden" name="userId" id="resetPasswordUserId" value="" />
+
+				<div class="form-group">
+					<label for="newPassword">New Password</label>
+					<input type="password" id="newPassword" name="newPassword" required minlength="8" />
+					<small>At least 8 characters</small>
+				</div>
+
+				<div class="modal-actions">
+					<button type="button" class="btn btn-outline" onclick="hideResetPasswordModal()">Cancel</button>
+					<button type="submit" class="btn btn-primary">Reset Password</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</AdminLayout>
+
+<script is:inline>
+	function showResetPasswordModal(userId, username) {
+		document.getElementById('resetPasswordUserId').value = userId;
+		document.getElementById('resetPasswordUsername').textContent = username;
+		document.getElementById('newPassword').value = '';
+		document.getElementById('resetPasswordModal').classList.add('show');
+	}
+
+	function hideResetPasswordModal() {
+		document.getElementById('resetPasswordModal').classList.remove('show');
+	}
+
+	// Close modal on outside click
+	document.getElementById('resetPasswordModal').addEventListener('click', function(e) {
+		if (e.target === this) {
+			hideResetPasswordModal();
+		}
+	});
+</script>
+
+<style>
+	.page-header {
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0 0 0.5rem 0;
+		color: #495057;
+	}
+
+	.subtitle {
+		margin: 0;
+		color: #6c757d;
+	}
+
+	.users-container {
+		display: flex;
+		flex-direction: column;
+		gap: 2rem;
+	}
+
+	.card {
+		background: white;
+		padding: 1.5rem 2rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	}
+
+	.card h2 {
+		margin: 0 0 1.5rem 0;
+		color: #495057;
+		font-size: 1.25rem;
+		border-bottom: 1px solid #e9ecef;
+		padding-bottom: 0.75rem;
+	}
+
+	.user-form {
+		max-width: 600px;
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+	}
+
+	@media (max-width: 768px) {
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.form-group {
+		margin-bottom: 1.25rem;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+		color: #495057;
+	}
+
+	.form-group input {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #ced4da;
+		border-radius: 4px;
+		font-size: 1rem;
+		transition: border-color 0.2s;
+	}
+
+	.form-group input:focus {
+		outline: none;
+		border-color: #007bff;
+		box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+	}
+
+	.form-group input.error {
+		border-color: #dc3545;
+	}
+
+	.form-group small {
+		display: block;
+		margin-top: 0.25rem;
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+
+	.error-text {
+		color: #dc3545;
+		font-size: 0.875rem;
+		margin-top: 0.25rem;
+		display: block;
+	}
+
+	/* Table styles */
+	.users-table-container {
+		overflow-x: auto;
+	}
+
+	.users-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.9rem;
+	}
+
+	.users-table th,
+	.users-table td {
+		padding: 0.75rem 1rem;
+		text-align: left;
+		border-bottom: 1px solid #e9ecef;
+	}
+
+	.users-table th {
+		background: #f8f9fa;
+		font-weight: 600;
+		color: #495057;
+	}
+
+	.users-table tr.inactive {
+		opacity: 0.6;
+		background: #f8f9fa;
+	}
+
+	.users-table tr:hover {
+		background: #f8f9fa;
+	}
+
+	.actions-cell {
+		min-width: 280px;
+	}
+
+	.action-buttons {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.inline-form {
+		display: inline;
+	}
+
+	/* Badges */
+	.badge {
+		display: inline-block;
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+	}
+
+	.badge-active {
+		background: #d4edda;
+		color: #155724;
+	}
+
+	.badge-inactive {
+		background: #f8d7da;
+		color: #721c24;
+	}
+
+	.badge-current {
+		background: #cce5ff;
+		color: #004085;
+		margin-left: 0.5rem;
+	}
+
+	.text-muted {
+		color: #6c757d;
+		font-style: italic;
+	}
+
+	/* Buttons */
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		border: none;
+		border-radius: 4px;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+		text-decoration: none;
+	}
+
+	.btn:hover {
+		filter: brightness(0.9);
+	}
+
+	.btn-sm {
+		padding: 0.375rem 0.75rem;
+		font-size: 0.8rem;
+	}
+
+	.btn-primary {
+		background: #007bff;
+	}
+
+	.btn-success {
+		background: #28a745;
+	}
+
+	.btn-warning {
+		background: #ffc107;
+		color: #212529;
+	}
+
+	.btn-danger {
+		background: #dc3545;
+	}
+
+	.btn-outline {
+		background: transparent;
+		border: 1px solid #6c757d;
+		color: #6c757d;
+	}
+
+	.btn-outline:hover {
+		background: #6c757d;
+		color: white;
+	}
+
+	/* Alerts */
+	.alert {
+		padding: 1rem;
+		border-radius: 4px;
+		margin-bottom: 1.5rem;
+	}
+
+	.alert-success {
+		background: #d4edda;
+		color: #155724;
+		border: 1px solid #c3e6cb;
+	}
+
+	.alert-error {
+		background: #f8d7da;
+		color: #721c24;
+		border: 1px solid #f5c6cb;
+	}
+
+	/* Modal */
+	.modal {
+		display: none;
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background: rgba(0, 0, 0, 0.5);
+		z-index: 1000;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.modal.show {
+		display: flex;
+	}
+
+	.modal-content {
+		background: white;
+		padding: 2rem;
+		border-radius: 8px;
+		max-width: 400px;
+		width: 90%;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+	}
+
+	.modal-content h3 {
+		margin: 0 0 1rem 0;
+		color: #495057;
+	}
+
+	.modal-content p {
+		margin-bottom: 1.5rem;
+		color: #6c757d;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 1rem;
+		justify-content: flex-end;
+		margin-top: 1.5rem;
+	}
+</style>
