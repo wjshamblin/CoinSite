@@ -9,7 +9,63 @@ description: Debug Vercel deployment issues for the CoinSite Astro project. Use 
 
 This skill provides a systematic workflow for debugging Vercel deployment issues specific to the CoinSite project (Astro 5 with SSR, @astrojs/vercel adapter, Astro DB with Turso).
 
-## When To Use
+## CRITICAL: Deployment Method
+
+**GitHub auto-deploys to Vercel on every `git push`.** Each push = one deployment.
+
+### NEVER use manual Vercel CLI deploys:
+```bash
+# WRONG - Creates duplicate deployments
+vercel deploy --prod
+vercel --prod
+```
+
+### Minimize deployments with this workflow:
+
+The bd git hooks automatically flush beads changes to JSONL on `git commit`, so you don't need separate `bd sync` calls.
+
+**Optimized single-deployment workflow:**
+```bash
+# 1. Work on the issue (claim, code, close)
+bd update <id> --status=in_progress
+# ... make code changes ...
+bd close <id>
+
+# 2. Stage EVERYTHING (code + beads) in one commit
+git add -A
+git commit -m "Your message"
+
+# 3. ONE push = ONE deployment
+git push
+```
+
+**Why this works:**
+- `bd update` and `bd close` modify the local database
+- The pre-commit hook flushes these to `.beads/issues.jsonl`
+- `git add -A` stages both code AND beads changes
+- Single `git push` triggers exactly one Vercel deployment
+
+**Avoid these patterns (cause multiple deployments):**
+```bash
+# BAD: Calling bd sync separately pushes to git
+bd sync  # <-- This pushes, triggering a deployment!
+git push # <-- This ALSO pushes, another deployment!
+
+# BAD: Multiple commits with pushes between
+git commit && git push  # deployment 1
+bd sync                 # deployment 2
+```
+
+### End-of-session checklist:
+```bash
+git status                    # Check what changed
+bd close <ids>                # Close completed issues
+git add -A                    # Stage everything
+git commit -m "..."           # Commit (hooks flush beads)
+git push                      # ONE deployment
+```
+
+## When To Use This Skill
 
 - After pushing changes to GitHub when deployment fails
 - When the deployed site shows 500 errors or unexpected behavior
@@ -179,7 +235,7 @@ export default defineConfig({
 | `vercel logs <url>` | View logs |
 | `vercel env ls` | List env vars |
 | `vercel env pull` | Pull env vars to local .env |
-| `vercel --prod` | Deploy to production |
+| `git push` | Deploy to production (auto-triggers Vercel) |
 
 ## Resources
 
