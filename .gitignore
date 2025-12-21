@@ -29,5 +29,4 @@ db.sqlite
 
 # temporary/test files
 X/
-*.mjs
 scripts/*.mjs
