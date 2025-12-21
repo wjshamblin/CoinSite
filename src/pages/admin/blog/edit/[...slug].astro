@@ -1,0 +1,385 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import { getCollection } from 'astro:content';
+import { writeFile, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { requireAuth, isRedirect } from '../../../../lib/authMiddleware';
+import { generateCsrfToken, validateCsrfToken, getCsrfTokenFromRequest } from '../../../../lib/csrf';
+
+export const prerender = false;
+
+// Check authentication
+const authResult = await requireAuth(Astro);
+if (isRedirect(authResult)) return authResult;
+const user = authResult;
+
+const { slug } = Astro.params;
+
+// Find the blog post
+const blogPosts = await getCollection('blog');
+const post = blogPosts.find(p => p.id === slug);
+
+if (!post) {
+	return Astro.redirect('/admin/blog');
+}
+
+// Read the raw markdown file to get content
+const filePath = join(process.cwd(), 'src', 'content', 'blog', `${slug}.md`);
+let rawContent = '';
+try {
+	const fileContent = await readFile(filePath, 'utf-8');
+	// Extract content after frontmatter
+	const contentMatch = fileContent.match(/^---[\s\S]*?---\s*([\s\S]*)$/);
+	rawContent = contentMatch ? contentMatch[1].trim() : '';
+} catch (e) {
+	console.error('Error reading blog file:', e);
+}
+
+const errors: Record<string, string> = {};
+let formData = {
+	title: post.data.title,
+	description: post.data.description,
+	content: rawContent,
+	pubDate: post.data.pubDate.toISOString().split('T')[0],
+	heroImage: post.data.heroImage || ''
+};
+let successMessage = '';
+let csrfToken = generateCsrfToken();
+
+if (Astro.request.method === 'POST') {
+	try {
+		const data = await Astro.request.formData();
+
+		if (!validateCsrfToken(getCsrfTokenFromRequest(data))) {
+			errors.general = 'Invalid form submission. Please try again.';
+		} else {
+			formData = {
+				title: data.get('title') as string,
+				description: data.get('description') as string,
+				content: data.get('content') as string,
+				pubDate: data.get('pubDate') as string,
+				heroImage: data.get('heroImage') as string
+			};
+
+			// Basic validation
+			if (!formData.title) errors.title = 'Title is required';
+			if (!formData.description) errors.description = 'Description is required';
+			if (!formData.content) errors.content = 'Content is required';
+			if (!formData.pubDate) errors.pubDate = 'Publication date is required';
+
+			if (Object.keys(errors).length === 0) {
+				const frontmatter = `---
+title: "${formData.title}"
+description: "${formData.description}"
+pubDate: "${formData.pubDate}"${formData.heroImage ? `\nheroImage: "${formData.heroImage}"` : ''}
+---
+
+${formData.content}`;
+
+				await writeFile(filePath, frontmatter, 'utf-8');
+				successMessage = 'Blog post updated successfully!';
+			}
+		}
+	} catch (error) {
+		console.error('Error updating blog post:', error);
+		errors.general = 'An error occurred while updating the blog post. Note: Editing is not available in production - please edit files locally.';
+	}
+}
+---
+
+<AdminLayout title={`Edit: ${post.data.title}`}>
+	<div class="page-header">
+		<h1>Edit Blog Post</h1>
+		<a href="/admin/blog" class="btn btn-outline">← Back to Blog Posts</a>
+	</div>
+
+	{successMessage && (
+		<div class="alert alert-success">
+			{successMessage}
+		</div>
+	)}
+
+	<form method="POST" class="admin-form">
+		<input type="hidden" name="_csrf" value={csrfToken} />
+		{errors.general && (
+			<div class="alert alert-error">
+				{errors.general}
+			</div>
+		)}
+
+		<div class="form-row">
+			<div class="form-group">
+				<label for="title">Post Title *</label>
+				<input
+					type="text"
+					id="title"
+					name="title"
+					value={formData.title}
+					required
+					class={errors.title ? 'error' : ''}
+				/>
+				{errors.title && <span class="error-text">{errors.title}</span>}
+			</div>
+
+			<div class="form-group">
+				<label for="slug">Slug</label>
+				<input
+					type="text"
+					id="slug"
+					value={slug}
+					disabled
+					class="disabled"
+				/>
+				<small>Slug cannot be changed after creation</small>
+			</div>
+		</div>
+
+		<div class="form-group">
+			<label for="description">Description *</label>
+			<textarea
+				id="description"
+				name="description"
+				rows="2"
+				required
+				class={errors.description ? 'error' : ''}
+			>{formData.description}</textarea>
+			{errors.description && <span class="error-text">{errors.description}</span>}
+		</div>
+
+		<div class="form-row">
+			<div class="form-group">
+				<label for="pubDate">Publication Date *</label>
+				<input
+					type="date"
+					id="pubDate"
+					name="pubDate"
+					value={formData.pubDate}
+					required
+					class={errors.pubDate ? 'error' : ''}
+				/>
+				{errors.pubDate && <span class="error-text">{errors.pubDate}</span>}
+			</div>
+
+			<div class="form-group">
+				<label for="heroImage">Hero Image (optional)</label>
+				<input
+					type="text"
+					id="heroImage"
+					name="heroImage"
+					value={formData.heroImage}
+					placeholder="e.g. blog-hero-image.jpg"
+				/>
+			</div>
+		</div>
+
+		<div class="form-group">
+			<label for="content">Content *</label>
+			<textarea
+				id="content"
+				name="content"
+				rows="20"
+				required
+				class={errors.content ? 'error' : ''}
+			>{formData.content}</textarea>
+			{errors.content && <span class="error-text">{errors.content}</span>}
+		</div>
+
+		<div class="form-actions">
+			<button type="submit" class="btn btn-primary">
+				Save Changes
+			</button>
+			<a href={`/blog/${slug}`} target="_blank" class="btn btn-outline">
+				View Post
+			</a>
+			<a href="/admin/blog" class="btn btn-outline">
+				Cancel
+			</a>
+		</div>
+	</form>
+
+	<div class="help-section">
+		<h3>Note</h3>
+		<p>Blog editing works in development mode. In production (Vercel), the filesystem is read-only. To edit posts in production, modify the markdown files locally and redeploy.</p>
+	</div>
+</AdminLayout>
+
+<style>
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0;
+		color: #495057;
+	}
+
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		text-decoration: none;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:hover {
+		background: #0056b3;
+	}
+
+	.btn-primary {
+		background: #007bff;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline:hover {
+		background: #007bff;
+		color: white;
+	}
+
+	.admin-form {
+		background: white;
+		padding: 2rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		margin-bottom: 2rem;
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 1rem;
+	}
+
+	.form-group {
+		margin-bottom: 1.5rem;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+		color: #495057;
+	}
+
+	.form-group input,
+	.form-group textarea {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #ced4da;
+		border-radius: 4px;
+		font-size: 1rem;
+		transition: border-color 0.2s;
+		font-family: inherit;
+	}
+
+	.form-group input.disabled {
+		background: #e9ecef;
+		color: #6c757d;
+	}
+
+	.form-group textarea {
+		resize: vertical;
+		min-height: 120px;
+	}
+
+	.form-group input:focus,
+	.form-group textarea:focus {
+		outline: none;
+		border-color: #007bff;
+		box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+	}
+
+	.form-group input.error,
+	.form-group textarea.error {
+		border-color: #dc3545;
+	}
+
+	.form-group small {
+		display: block;
+		margin-top: 0.25rem;
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+
+	.error-text {
+		color: #dc3545;
+		font-size: 0.875rem;
+		margin-top: 0.25rem;
+		display: block;
+	}
+
+	.alert {
+		padding: 1rem;
+		border-radius: 4px;
+		margin-bottom: 1.5rem;
+	}
+
+	.alert-success {
+		background: #d4edda;
+		color: #155724;
+		border: 1px solid #c3e6cb;
+	}
+
+	.alert-error {
+		background: #f8d7da;
+		color: #721c24;
+		border: 1px solid #f5c6cb;
+	}
+
+	.form-actions {
+		display: flex;
+		gap: 1rem;
+		margin-top: 2rem;
+		padding-top: 1rem;
+		border-top: 1px solid #dee2e6;
+	}
+
+	.help-section {
+		background: #fff3cd;
+		padding: 1rem 1.5rem;
+		border-radius: 8px;
+		border-left: 4px solid #ffc107;
+	}
+
+	.help-section h3 {
+		margin: 0 0 0.5rem 0;
+		color: #856404;
+		font-size: 1rem;
+	}
+
+	.help-section p {
+		margin: 0;
+		color: #856404;
+		font-size: 0.9rem;
+	}
+
+	@media (max-width: 768px) {
+		.page-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 1rem;
+		}
+
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+
+		.form-actions {
+			flex-direction: column;
+		}
+	}
+</style>
