@@ -11,13 +11,7 @@ const isAuthenticated = !!user;
 <header>
 	<div class="header-container">
 		<a href="/" class="logo">
-			<span class="logo-icon">
-				<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
-					<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
-					<circle cx="12" cy="12" r="7" stroke="currentColor" stroke-width="1"/>
-					<text x="12" y="16" text-anchor="middle" fill="currentColor" font-size="8" font-weight="bold">LM</text>
-				</svg>
-			</span>
+			<img src="/images/lordmarcovan-avatar.jpg" alt="Lord Marcovan" class="logo-avatar" />
 			<span class="logo-text">{SITE_TITLE}</span>
 		</a>
 
@@ -116,8 +110,12 @@ const isAuthenticated = !!user;
 		opacity: 0.8;
 	}
 
-	.logo-icon {
-		color: var(--gold);
+	.logo-avatar {
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		object-fit: cover;
+		border: 2px solid var(--gold);
 	}
 
 	.logo-text {
