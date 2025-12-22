@@ -1,8 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { Image } from 'astro:assets';
 import { db, Collections } from 'astro:db';
 import CoinSlideshow from '../components/CoinSlideshow.astro';
+import { getImageUrl } from '../lib/images';
 
 // Get featured collections for homepage
 const featuredCollections = await db.select().from(Collections).limit(3);
@@ -89,11 +89,11 @@ const featuredCoins = [
 			{featuredCollections.map((collection) => (
 				<a href={`/collections/${collection.slug}`} class="collection-card">
 					<div class="collection-image-wrapper">
-						<Image
-							src={`/images/collections/${collection.thumbnail}`}
+						<img
+							src={getImageUrl(collection.thumbnail, 'collections')}
 							alt={collection.name}
-							width={400}
-							height={280}
+							width="400"
+							height="280"
 							class="collection-image"
 							loading="lazy"
 						/>
