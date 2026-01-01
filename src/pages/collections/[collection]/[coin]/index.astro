@@ -3,6 +3,7 @@
 import Layout from '../../../../layouts/Layout.astro';
 import { db, Collections, Coins, Images, eq, and } from 'astro:db';
 import { getImageUrl } from '../../../../lib/images';
+import { marked } from 'marked';
 
 export const prerender = false;
 
@@ -65,8 +66,8 @@ const images = await db
 
 	<!-- Description -->
 	{coin.description && (
-		<section class="coin-description">
-			<p>{coin.description}</p>
+		<section class="coin-description prose">
+			<Fragment set:html={await marked(coin.description)} />
 		</section>
 	)}
 
@@ -253,11 +254,41 @@ const images = await db
 		border-left: 4px solid var(--gold);
 	}
 
-	.coin-description p {
-		margin: 0;
+	.coin-description :global(p) {
+		margin: 0 0 1rem 0;
 		color: rgb(var(--gray-dark));
 		line-height: 1.75;
 		font-size: 1.0625rem;
+	}
+
+	.coin-description :global(p:last-child) {
+		margin-bottom: 0;
+	}
+
+	.coin-description :global(a) {
+		color: var(--gold-dark);
+		text-decoration: underline;
+	}
+
+	.coin-description :global(a:hover) {
+		color: var(--accent-dark);
+	}
+
+	.coin-description :global(strong) {
+		font-weight: 600;
+		color: var(--navy);
+	}
+
+	.coin-description :global(ul),
+	.coin-description :global(ol) {
+		margin: 0 0 1rem 0;
+		padding-left: 1.5rem;
+		color: rgb(var(--gray-dark));
+	}
+
+	.coin-description :global(li) {
+		margin-bottom: 0.5rem;
+		line-height: 1.75;
 	}
 
 	/* Gallery Section */

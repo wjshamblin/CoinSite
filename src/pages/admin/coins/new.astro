@@ -150,9 +150,10 @@ if (Astro.request.method === 'POST') {
 				id="description"
 				name="description"
 				rows="3"
-				placeholder="Describe this coin..."
+				placeholder="Describe this coin using Markdown for formatting..."
 				class={errors.description ? 'error' : ''}
 			>{formData.description}</textarea>
+			<small>Supports Markdown: **bold**, *italic*, [links](url), - lists</small>
 			{errors.description && <span class="error-text">{errors.description}</span>}
 		</div>
 
@@ -221,6 +222,7 @@ if (Astro.request.method === 'POST') {
 	<div class="help-section">
 		<h3>📝 Quick Tips</h3>
 		<ul>
+			<li><strong>Description:</strong> Supports Markdown - use **bold**, *italic*, and [links](url)</li>
 			<li><strong>Primary Image:</strong> This image represents the coin in galleries</li>
 			<li><strong>Additional Images:</strong> Add more images after creating the coin</li>
 			<li><strong>Condition:</strong> Use standard numismatic grading scales</li>
