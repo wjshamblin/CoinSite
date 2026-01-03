@@ -40,14 +40,20 @@ const images = await db
 	.where(eq(Images.coinId, coin.id))
 	.orderBy(Images.sortOrder);
 
-// Get the primary image: first check Images table, then fall back to coin.primaryImage
-const primaryImageFromTable = images.find(img => img.isPrimary) || images[0];
-const primaryImageUrl = primaryImageFromTable
-	? getImageUrl(primaryImageFromTable.filename, 'coins')
-	: coin.primaryImage
-		? getImageUrl(coin.primaryImage, 'coins')
+// Get the primary image URL from coin.primaryImage field
+const primaryImageUrl = coin.primaryImage
+	? getImageUrl(coin.primaryImage, 'coins')
+	: images[0]
+		? getImageUrl(images[0].filename, 'coins')
 		: null;
+
+// Find matching image in Images table for alt text
+const primaryImageFromTable = coin.primaryImage
+	? images.find(img => getImageUrl(img.filename, 'coins') === getImageUrl(coin.primaryImage, 'coins'))
+	: images[0];
 const primaryImageAlt = primaryImageFromTable?.alt || coin.name;
+
+// Gallery shows all images except the primary
 const galleryImages = primaryImageFromTable
 	? images.filter(img => img.id !== primaryImageFromTable.id)
 	: images;
