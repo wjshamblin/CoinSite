@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import ImageUploadField from '../../../../components/admin/ImageUploadField.astro';
+import HtmlEditor from '../../../../components/admin/HtmlEditor.astro';
 export const prerender = false; // Enable server-side rendering for authentication
 
 import { db, Collections, eq } from 'astro:db';
@@ -122,18 +123,13 @@ if (Astro.request.method === 'POST') {
 			{errors.slug && <span class="error-text">{errors.slug}</span>}
 		</div>
 
-		<div class="form-group">
-			<label for="description">Description *</label>
-			<textarea
-				id="description"
-				name="description"
-				rows="4"
-				placeholder="Describe this collection..."
-				required
-				class={errors.description ? 'error' : ''}
-			>{formData.description}</textarea>
-			{errors.description && <span class="error-text">{errors.description}</span>}
-		</div>
+		<HtmlEditor
+			inputId="description"
+			label="Description *"
+			initialValue={formData.description}
+			placeholder="Describe this collection..."
+			rows={4}
+		/>
 
 		<ImageUploadField
 			inputId="thumbnail"
