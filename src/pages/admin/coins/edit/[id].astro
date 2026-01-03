@@ -236,14 +236,13 @@ if (Astro.request.method === 'POST') {
 					>
 				</div>
 
-				<ImageUploadField
-					inputId="primaryImage"
-					label="Primary Image"
-					required={true}
-					imageType="coins"
-					initialValue={formData.primaryImage}
-					error={errors.primaryImage}
-				/>
+				<!-- Primary image is set via "Set as Primary" button in the images section below -->
+				<input type="hidden" id="primaryImage" name="primaryImage" value={formData.primaryImage} />
+				{errors.primaryImage && (
+					<div class="alert alert-error" style="margin-bottom: 1rem;">
+						<p>{errors.primaryImage} - Add an image below and click "Set as Primary"</p>
+					</div>
+				)}
 
 				<div class="form-group checkbox-group">
 					<label class="checkbox-label">
