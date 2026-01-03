@@ -1,13 +1,15 @@
 import type { APIRoute } from 'astro';
 import { put } from '@vercel/blob';
+import { getSessionUser } from '../../../lib/auth';
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
-    // Check for session cookie (basic auth check)
+    // Validate session against database
     const sessionToken = cookies.get('admin_session')?.value;
-    if (!sessionToken) {
+    const user = sessionToken ? await getSessionUser(sessionToken) : null;
+    if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }

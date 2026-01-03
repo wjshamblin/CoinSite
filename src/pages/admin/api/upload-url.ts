@@ -1,13 +1,15 @@
 import type { APIRoute } from 'astro';
+import { getSessionUser } from '../../../lib/auth';
 
 export const prerender = false;
 
 // This endpoint handles the Vercel Blob client upload callback
 // Used by @vercel/blob/client upload() function
 export const POST: APIRoute = async ({ request, cookies }) => {
-  // Check for session cookie (basic auth check)
+  // Validate session against database
   const sessionToken = cookies.get('admin_session')?.value;
-  if (!sessionToken) {
+  const user = sessionToken ? await getSessionUser(sessionToken) : null;
+  if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' }
