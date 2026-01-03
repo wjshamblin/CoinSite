@@ -40,6 +40,10 @@ const images = await db
 	.from(Images)
 	.where(eq(Images.coinId, coin.id))
 	.orderBy(Images.sortOrder);
+
+// Get the primary image (first one or one marked as primary)
+const primaryImage = images.find(img => img.isPrimary) || images[0];
+const galleryImages = images.filter(img => img.id !== primaryImage?.id);
 ---
 
 <Layout title={`${coin.name} - ${collection.name}`}>
@@ -57,9 +61,31 @@ const images = await db
 		<h1>{coin.name}</h1>
 	</header>
 
+	<!-- Primary Image -->
+	{primaryImage && (
+		<section class="primary-image-section">
+			<div class="primary-image-wrapper">
+				<img
+					src={getImageUrl(primaryImage.filename, 'coins')}
+					alt={primaryImage.alt}
+					class="primary-coin-image"
+					loading="eager"
+				/>
+				<button class="zoom-btn" aria-label="Zoom image" data-image={getImageUrl(primaryImage.filename, 'coins')}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<circle cx="11" cy="11" r="8"/>
+						<path d="m21 21-4.35-4.35"/>
+						<path d="M11 8v6M8 11h6"/>
+					</svg>
+				</button>
+			</div>
+		</section>
+	)}
+
 	<!-- Coin Details Box (description with formatted content) -->
 	{coin.description && (
 		<section class="coin-details-box">
+			<h2>Coin Details</h2>
 			<div class="coin-description prose">
 				<Fragment set:html={await marked(coin.description)} />
 			</div>
@@ -88,45 +114,44 @@ const images = await db
 		</section>
 	)}
 
-	<!-- Image Gallery -->
-	<section class="gallery-section">
-		<h2>Gallery</h2>
-		<div class="images-gallery">
-			{images.map((image) => (
-				<figure class="image-card">
-					<div class="image-wrapper">
-						<img
-							src={getImageUrl(image.filename, 'coins')}
-							alt={image.alt}
-							width="500"
-							height="400"
-							class="coin-image"
-							loading="lazy"
-						/>
-						<button class="zoom-btn" aria-label="Zoom image" data-image={getImageUrl(image.filename, 'coins')}>
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<circle cx="11" cy="11" r="8"/>
-								<path d="m21 21-4.35-4.35"/>
-								<path d="M11 8v6M8 11h6"/>
-							</svg>
-						</button>
-					</div>
-					<figcaption>
-						<h3>{image.title}</h3>
-						{image.description && <p>{image.description}</p>}
-					</figcaption>
-				</figure>
-			))}
-		</div>
-	</section>
+	<!-- Image Gallery (remaining images) -->
+	{galleryImages.length > 0 && (
+		<section class="gallery-section">
+			<h2>Gallery</h2>
+			<div class="images-gallery">
+				{galleryImages.map((image) => (
+					<figure class="image-card">
+						<div class="image-wrapper">
+							<img
+								src={getImageUrl(image.filename, 'coins')}
+								alt={image.alt}
+								width="500"
+								height="400"
+								class="coin-image"
+								loading="lazy"
+							/>
+							<button class="zoom-btn" aria-label="Zoom image" data-image={getImageUrl(image.filename, 'coins')}>
+								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<circle cx="11" cy="11" r="8"/>
+									<path d="m21 21-4.35-4.35"/>
+									<path d="M11 8v6M8 11h6"/>
+								</svg>
+							</button>
+						</div>
+						<figcaption>
+							<h3>{image.title}</h3>
+							{image.description && <p>{image.description}</p>}
+						</figcaption>
+					</figure>
+				))}
+			</div>
+		</section>
+	)}
 
-	<!-- Collection Info -->
-	<section class="collection-info-section">
-		<h2>Coin Details</h2>
-		<div class="collection-card">
-			<span class="collection-label">Collection</span>
-			<a href={`/collections/${collection.slug}`} class="collection-name">{collection.name}</a>
-		</div>
+	<!-- Collection Link -->
+	<section class="collection-link-section">
+		<span class="collection-label">Collection</span>
+		<a href={`/collections/${collection.slug}`} class="collection-name">{collection.name}</a>
 	</section>
 
 	<!-- Back Navigation -->
@@ -222,6 +247,61 @@ const images = await db
 		font-size: clamp(2rem, 5vw, 3rem);
 	}
 
+	/* Primary Image Section */
+	.primary-image-section {
+		margin-bottom: 2rem;
+	}
+
+	.primary-image-wrapper {
+		position: relative;
+		display: inline-block;
+		max-width: 100%;
+		background: white;
+		border-radius: 12px;
+		overflow: hidden;
+		box-shadow: var(--shadow-md);
+	}
+
+	.primary-coin-image {
+		display: block;
+		max-width: 100%;
+		max-height: 500px;
+		width: auto;
+		height: auto;
+		object-fit: contain;
+		background: #f5f5f0;
+	}
+
+	.primary-image-wrapper .zoom-btn {
+		position: absolute;
+		bottom: 1rem;
+		right: 1rem;
+		width: 44px;
+		height: 44px;
+		background: rgba(255, 255, 255, 0.95);
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		opacity: 0;
+		transform: translateY(10px);
+		transition: all var(--transition-fast);
+		box-shadow: var(--shadow-md);
+		color: var(--navy);
+	}
+
+	.primary-image-wrapper:hover .zoom-btn {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	.primary-image-wrapper .zoom-btn:hover {
+		background: var(--gold);
+		color: white;
+	}
+
 	/* Coin Details Box */
 	.coin-details-box {
 		background: white;
@@ -230,6 +310,11 @@ const images = await db
 		margin-bottom: 3rem;
 		box-shadow: var(--shadow-sm);
 		border-left: 4px solid var(--gold);
+	}
+
+	.coin-details-box h2 {
+		margin-bottom: 1.25rem;
+		font-size: 1.5rem;
 	}
 
 	.coin-description {
@@ -391,25 +476,16 @@ const images = await db
 		margin: 0;
 	}
 
-	/* Collection Info Section */
-	.collection-info-section {
-		background: white;
-		padding: 2rem;
-		border-radius: 12px;
-		box-shadow: var(--shadow-sm);
-		margin-bottom: 2rem;
-		border-left: 4px solid var(--gold);
-	}
-
-	.collection-info-section h2 {
-		margin-bottom: 1rem;
-		font-size: 1.25rem;
-	}
-
-	.collection-card {
+	/* Collection Link Section */
+	.collection-link-section {
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
+		padding: 1.5rem 2rem;
+		background: white;
+		border-radius: 12px;
+		box-shadow: var(--shadow-sm);
+		margin-bottom: 2rem;
 	}
 
 	.collection-label {
