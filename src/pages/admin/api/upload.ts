@@ -59,13 +59,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         const pathname = `${type}/${filename}`;
 
         // Upload to Vercel Blob
+        // addRandomSuffix: true ensures unique filenames to avoid conflicts
         const blob = await put(pathname, file, {
           access: 'public',
-          addRandomSuffix: false, // Keep the original filename
+          addRandomSuffix: true,
         });
 
         uploadedFiles.push({
-          filename,
+          filename: blob.pathname, // Use the actual stored pathname (includes random suffix)
           url: blob.url
         });
       } catch (error) {
