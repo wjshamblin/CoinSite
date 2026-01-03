@@ -37,14 +37,14 @@ for (const coin of allCoins) {
 	}
 }
 
-// Helper to get thumbnail URL - checks Images table first, then falls back to coin.primaryImage
+// Helper to get thumbnail URL - uses coin.primaryImage first, falls back to first image from Images table
 function getThumbnailUrl(coin: typeof allCoins[0]): string | null {
+	if (coin.primaryImage) {
+		return getImageUrl(coin.primaryImage, 'coins');
+	}
 	const imageFromTable = coinImages.get(coin.id);
 	if (imageFromTable) {
 		return getImageUrl(imageFromTable, 'coins');
-	}
-	if (coin.primaryImage) {
-		return getImageUrl(coin.primaryImage, 'coins');
 	}
 	return null;
 }
