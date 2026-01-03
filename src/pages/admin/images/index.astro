@@ -738,6 +738,8 @@ try {
 </style>
 
 <script>
+	import { upload } from '@vercel/blob/client';
+
 	let selectedFiles = [];
 
 	window.showUploadModal = function() {
@@ -847,13 +849,6 @@ try {
 			return;
 		}
 
-		const formData = new FormData();
-		formData.append('type', uploadType);
-
-		selectedFiles.forEach(file => {
-			formData.append('files', file);
-		});
-
 		const uploadBtn = document.getElementById('uploadBtn');
 		const progressDiv = document.getElementById('uploadProgress');
 		const resultDiv = document.getElementById('uploadResult');
@@ -862,22 +857,40 @@ try {
 		progressDiv.style.display = 'block';
 		resultDiv.style.display = 'none';
 
-		try {
-			console.log('Starting fetch to /admin/api/upload');
-			const response = await fetch('/admin/api/upload', {
-				method: 'POST',
-				body: formData
-			});
-			console.log('Response received:', response);
+		const uploadedFiles = [];
+		const errors = [];
 
-			const result = await response.json();
-			console.log('Result:', result);
+		try {
+			// Upload each file directly to Vercel Blob (bypasses serverless function size limit)
+			for (const file of selectedFiles) {
+				try {
+					// Sanitize filename
+					const filename = file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '-');
+					const pathname = `${uploadType}/${filename}`;
+
+					console.log('Uploading:', pathname);
+
+					const blob = await upload(pathname, file, {
+						access: 'public',
+						handleUploadUrl: '/admin/api/upload-url',
+					});
+
+					console.log('Upload successful:', blob);
+					uploadedFiles.push({
+						filename: blob.pathname,
+						url: blob.url
+					});
+				} catch (fileError) {
+					console.error('Error uploading file:', file.name, fileError);
+					errors.push(`${file.name}: ${fileError.message || 'Upload failed'}`);
+				}
+			}
 
 			progressDiv.style.display = 'none';
 
-			if (response.ok && result.success) {
+			if (uploadedFiles.length > 0) {
 				resultDiv.className = 'upload-result success';
-				resultDiv.textContent = result.message;
+				resultDiv.textContent = `Successfully uploaded ${uploadedFiles.length} file(s)${errors.length > 0 ? ` (${errors.length} failed)` : ''}`;
 				resultDiv.style.display = 'block';
 
 				// Reset form after successful upload
@@ -886,13 +899,14 @@ try {
 				}, 2000);
 			} else {
 				resultDiv.className = 'upload-result error';
-				resultDiv.textContent = result.error || 'Upload failed';
+				resultDiv.textContent = errors.join(', ') || 'All uploads failed';
 				resultDiv.style.display = 'block';
 			}
 		} catch (error) {
+			console.error('Upload error:', error);
 			progressDiv.style.display = 'none';
 			resultDiv.className = 'upload-result error';
-			resultDiv.textContent = 'Network error during upload';
+			resultDiv.textContent = error.message || 'Network error during upload';
 			resultDiv.style.display = 'block';
 		}
 
