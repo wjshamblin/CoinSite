@@ -120,6 +120,19 @@ if (Astro.request.method === 'POST') {
 				const imageId = parseInt(data.get('imageId') as string);
 				await db.delete(Images).where(eq(Images.id, imageId));
 				return Astro.redirect(`/admin/coins/edit/${id}`);
+			} else if (action === 'reorderImages') {
+				const orderData = data.get('order') as string;
+				if (orderData) {
+					const order = JSON.parse(orderData) as Array<{ id: number; sortOrder: number }>;
+					for (const item of order) {
+						await db.update(Images)
+							.set({ sortOrder: item.sortOrder })
+							.where(eq(Images.id, item.id));
+					}
+					return new Response(JSON.stringify({ success: true }), {
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
 			}
 		}
 	} catch (error) {
@@ -344,13 +357,23 @@ if (Astro.request.method === 'POST') {
 			{coinImages.length > 0 ? (
 				<div class="existing-images">
 					<h3>Current Images</h3>
-					<p class="section-hint">Click "Set as Primary" to use an image as the main coin photo.</p>
-					<div class="images-grid">
+					<p class="section-hint">Drag images to reorder. Click "Set as Primary" to use an image as the main coin photo.</p>
+					<div class="images-grid" id="sortable-images">
 						{coinImages.map((image) => {
 							const imageUrl = getImageUrl(image.filename, 'coins');
 							const isPrimaryImage = formData.primaryImage === imageUrl || formData.primaryImage === image.filename;
 							return (
-								<div class={`image-card ${isPrimaryImage ? 'is-primary' : ''}`} data-image-url={imageUrl}>
+								<div class={`image-card ${isPrimaryImage ? 'is-primary' : ''}`} data-image-url={imageUrl} data-id={image.id} draggable="true">
+									<div class="drag-handle" title="Drag to reorder">
+										<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+											<circle cx="4" cy="3" r="1.5"/>
+											<circle cx="12" cy="3" r="1.5"/>
+											<circle cx="4" cy="8" r="1.5"/>
+											<circle cx="12" cy="8" r="1.5"/>
+											<circle cx="4" cy="13" r="1.5"/>
+											<circle cx="12" cy="13" r="1.5"/>
+										</svg>
+									</div>
 									<div class="image-preview">
 										<img
 											src={imageUrl}
@@ -655,12 +678,54 @@ if (Astro.request.method === 'POST') {
 		border-radius: 8px;
 		overflow: hidden;
 		background: white;
-		transition: border-color 0.2s, box-shadow 0.2s;
+		transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s;
+		position: relative;
+		cursor: grab;
+	}
+
+	.image-card:active {
+		cursor: grabbing;
 	}
 
 	.image-card.is-primary {
 		border-color: #28a745;
 		box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+	}
+
+	.image-card.dragging {
+		opacity: 0.5;
+		transform: scale(0.95);
+	}
+
+	.image-card.drag-over {
+		border-color: #007bff;
+		box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+	}
+
+	.drag-handle {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+		width: 28px;
+		height: 28px;
+		background: rgba(255, 255, 255, 0.9);
+		border-radius: 4px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #6c757d;
+		cursor: grab;
+		z-index: 5;
+		transition: background 0.2s, color 0.2s;
+	}
+
+	.drag-handle:hover {
+		background: white;
+		color: #007bff;
+	}
+
+	.drag-handle:active {
+		cursor: grabbing;
 	}
 
 	.image-preview {
@@ -783,3 +848,115 @@ if (Astro.request.method === 'POST') {
 	}
 </style>
 
+<script define:vars={{ csrfToken }}>
+	// Drag and drop reordering for images
+	const sortableContainer = document.getElementById('sortable-images');
+	if (sortableContainer) {
+		let draggedItem = null;
+
+		const cards = sortableContainer.querySelectorAll('.image-card');
+		cards.forEach(card => {
+			card.addEventListener('dragstart', handleDragStart);
+			card.addEventListener('dragend', handleDragEnd);
+			card.addEventListener('dragover', handleDragOver);
+			card.addEventListener('dragenter', handleDragEnter);
+			card.addEventListener('dragleave', handleDragLeave);
+			card.addEventListener('drop', handleDrop);
+		});
+
+		function handleDragStart(e) {
+			draggedItem = this;
+			this.classList.add('dragging');
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('text/html', this.innerHTML);
+		}
+
+		function handleDragEnd(e) {
+			this.classList.remove('dragging');
+			sortableContainer.querySelectorAll('.image-card').forEach(card => {
+				card.classList.remove('drag-over');
+			});
+		}
+
+		function handleDragOver(e) {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = 'move';
+			return false;
+		}
+
+		function handleDragEnter(e) {
+			if (this !== draggedItem) {
+				this.classList.add('drag-over');
+			}
+		}
+
+		function handleDragLeave(e) {
+			this.classList.remove('drag-over');
+		}
+
+		function handleDrop(e) {
+			e.stopPropagation();
+			e.preventDefault();
+
+			if (draggedItem !== this) {
+				// Get all cards as array
+				const allCards = Array.from(sortableContainer.querySelectorAll('.image-card'));
+				const draggedIndex = allCards.indexOf(draggedItem);
+				const dropIndex = allCards.indexOf(this);
+
+				// Reorder in DOM
+				if (draggedIndex < dropIndex) {
+					this.parentNode.insertBefore(draggedItem, this.nextSibling);
+				} else {
+					this.parentNode.insertBefore(draggedItem, this);
+				}
+
+				// Save new order
+				saveOrder();
+			}
+
+			this.classList.remove('drag-over');
+			return false;
+		}
+
+		async function saveOrder() {
+			const cards = sortableContainer.querySelectorAll('.image-card');
+			const order = Array.from(cards).map((card, index) => ({
+				id: parseInt(card.dataset.id),
+				sortOrder: index + 1
+			}));
+
+			// Update the displayed order numbers
+			cards.forEach((card, index) => {
+				const orderSpan = card.querySelector('.sort-order');
+				if (orderSpan) {
+					orderSpan.textContent = `Order: ${index + 1}`;
+				}
+			});
+
+			// Save to server
+			const formData = new FormData();
+			formData.append('_csrf', csrfToken);
+			formData.append('action', 'reorderImages');
+			formData.append('order', JSON.stringify(order));
+
+			try {
+				const response = await fetch(window.location.pathname, {
+					method: 'POST',
+					body: formData
+				});
+
+				if (response.ok) {
+					// Show brief success indicator
+					const toast = document.createElement('div');
+					toast.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1000; padding: 0.75rem 1rem; background: #d4edda; color: #155724; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);';
+					toast.textContent = 'Order saved';
+					document.body.appendChild(toast);
+					setTimeout(() => toast.remove(), 2000);
+				}
+			} catch (error) {
+				console.error('Failed to save order:', error);
+			}
+		}
+	}
+</script>
