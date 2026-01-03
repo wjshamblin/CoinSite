@@ -108,6 +108,14 @@ if (Astro.request.method === 'POST') {
 
 					return Astro.redirect(`/admin/coins/edit/${id}`);
 				}
+			} else if (action === 'setPrimary') {
+				const imageUrl = data.get('imageUrl') as string;
+				if (imageUrl) {
+					await db.update(Coins).set({
+						primaryImage: imageUrl
+					}).where(eq(Coins.id, id));
+					return Astro.redirect(`/admin/coins/edit/${id}`);
+				}
 			} else if (action === 'deleteImage') {
 				const imageId = parseInt(data.get('imageId') as string);
 				await db.delete(Images).where(eq(Images.id, imageId));
@@ -361,14 +369,18 @@ if (Astro.request.method === 'POST') {
 											<span class="sort-order">Order: {image.sortOrder}</span>
 										</div>
 										<div class="image-actions">
-											<button
-												type="button"
-												class={`btn btn-sm ${isPrimaryImage ? 'btn-success' : 'btn-outline'} set-primary-btn`}
-												data-url={imageUrl}
-												disabled={isPrimaryImage}
-											>
-												{isPrimaryImage ? '✓ Primary' : 'Set as Primary'}
-											</button>
+											{isPrimaryImage ? (
+												<span class="btn btn-sm btn-success">✓ Primary</span>
+											) : (
+												<form method="POST" class="set-primary-form">
+													<input type="hidden" name="_csrf" value={csrfToken} />
+													<input type="hidden" name="action" value="setPrimary" />
+													<input type="hidden" name="imageUrl" value={imageUrl} />
+													<button type="submit" class="btn btn-sm btn-outline">
+														Set as Primary
+													</button>
+												</form>
+											)}
 											<form method="POST" class="delete-form">
 												<input type="hidden" name="_csrf" value={csrfToken} />
 												<input type="hidden" name="action" value="deleteImage">
@@ -740,6 +752,7 @@ if (Astro.request.method === 'POST') {
 		border-color: #007bff;
 	}
 
+	.set-primary-form,
 	.delete-form {
 		margin: 0;
 	}
@@ -770,64 +783,3 @@ if (Astro.request.method === 'POST') {
 	}
 </style>
 
-<script>
-	// Handle "Set as Primary" button clicks
-	document.querySelectorAll('.set-primary-btn').forEach(btn => {
-		btn.addEventListener('click', function() {
-			const imageUrl = this.dataset.url;
-
-			// Update the hidden primaryImage input in the coin details form
-			const primaryImageInput = document.getElementById('primaryImage');
-			if (primaryImageInput) {
-				primaryImageInput.value = imageUrl;
-				// Trigger change event for ImageUploadField preview
-				primaryImageInput.dispatchEvent(new Event('input', { bubbles: true }));
-				primaryImageInput.dispatchEvent(new Event('change', { bubbles: true }));
-			}
-
-			// Update visual state of all image cards
-			document.querySelectorAll('.image-card').forEach(card => {
-				const cardUrl = card.dataset.imageUrl;
-				const cardBtn = card.querySelector('.set-primary-btn');
-				const overlay = card.querySelector('.primary-overlay');
-
-				if (cardUrl === imageUrl) {
-					// This is the new primary
-					card.classList.add('is-primary');
-					cardBtn.classList.remove('btn-outline');
-					cardBtn.classList.add('btn-success');
-					cardBtn.textContent = '✓ Primary';
-					cardBtn.disabled = true;
-
-					// Add overlay if not exists
-					if (!overlay) {
-						const newOverlay = document.createElement('div');
-						newOverlay.className = 'primary-overlay';
-						newOverlay.textContent = 'PRIMARY';
-						card.querySelector('.image-preview').appendChild(newOverlay);
-					}
-				} else {
-					// Not the primary
-					card.classList.remove('is-primary');
-					cardBtn.classList.remove('btn-success');
-					cardBtn.classList.add('btn-outline');
-					cardBtn.textContent = 'Set as Primary';
-					cardBtn.disabled = false;
-
-					// Remove overlay if exists
-					if (overlay) {
-						overlay.remove();
-					}
-				}
-			});
-
-			// Show feedback
-			const statusMsg = document.createElement('div');
-			statusMsg.className = 'alert alert-success';
-			statusMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1000; padding: 1rem; background: #d4edda; color: #155724; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);';
-			statusMsg.textContent = 'Primary image updated! Click "Update Coin" to save.';
-			document.body.appendChild(statusMsg);
-			setTimeout(() => statusMsg.remove(), 3000);
-		});
-	});
-</script>
