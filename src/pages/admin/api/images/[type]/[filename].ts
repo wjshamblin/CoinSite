@@ -3,7 +3,7 @@ import { del, list } from '@vercel/blob';
 
 export const prerender = false;
 
-export const DELETE: APIRoute = async ({ params, cookies }) => {
+export const DELETE: APIRoute = async ({ params, cookies, request }) => {
   try {
     // Check for session cookie (basic auth check)
     const sessionToken = cookies.get('admin_session')?.value;
@@ -17,8 +17,8 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
     const { type, filename } = params;
 
     // Validate type parameter
-    if (!type || !['collections', 'coins'].includes(type)) {
-      return new Response(JSON.stringify({ error: 'Invalid image type. Must be "collections" or "coins".' }), {
+    if (!type || !['collections', 'coins', 'pages'].includes(type)) {
+      return new Response(JSON.stringify({ error: 'Invalid image type. Must be "collections", "coins", or "pages".' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -31,9 +31,36 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
       });
     }
 
-    // Sanitize filename to prevent path traversal
-    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '');
-    if (sanitizedFilename !== filename) {
+    // Decode the filename (it may be URL-encoded)
+    const decodedFilename = decodeURIComponent(filename);
+
+    // Check if the filename is actually a full blob URL
+    if (decodedFilename.startsWith('http://') || decodedFilename.startsWith('https://')) {
+      try {
+        // It's a full URL - delete directly
+        await del(decodedFilename);
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Image deleted from blob storage'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (blobError) {
+        console.error('Blob delete error:', blobError);
+        return new Response(JSON.stringify({
+          error: 'Failed to delete image from blob storage',
+          details: blobError instanceof Error ? blobError.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Sanitize filename to prevent path traversal (only for simple filenames)
+    const sanitizedFilename = decodedFilename.replace(/[^a-zA-Z0-9._-]/g, '');
+    if (sanitizedFilename !== decodedFilename) {
       return new Response(JSON.stringify({ error: 'Invalid filename' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }

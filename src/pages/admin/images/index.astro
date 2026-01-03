@@ -2,6 +2,7 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { list } from '@vercel/blob';
 import { requireAuth, isRedirect } from '../../../lib/authMiddleware';
 
 export const prerender = false; // Enable server-side rendering for authentication
@@ -11,32 +12,60 @@ const authResult = await requireAuth(Astro);
 if (isRedirect(authResult)) return authResult;
 const user = authResult;
 
-// Get list of images from public directories
-let collectionImages = [];
-let coinImages = [];
+// Get list of static images from public directories (legacy images in git)
+let staticCollectionImages: string[] = [];
+let staticCoinImages: string[] = [];
 
 try {
 	const collectionsPath = join(process.cwd(), 'public', 'images', 'collections');
-	collectionImages = await readdir(collectionsPath).catch(() => []);
+	staticCollectionImages = await readdir(collectionsPath).catch(() => []);
 } catch (error) {
 	// Directory doesn't exist yet
 }
 
 try {
 	const coinsPath = join(process.cwd(), 'public', 'images', 'coins');
-	coinImages = await readdir(coinsPath).catch(() => []);
+	staticCoinImages = await readdir(coinsPath).catch(() => []);
 } catch (error) {
 	// Directory doesn't exist yet
 }
 
 // Filter only image files
 const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-collectionImages = collectionImages.filter(file =>
+staticCollectionImages = staticCollectionImages.filter(file =>
 	imageExtensions.some(ext => file.toLowerCase().endsWith(ext))
 );
-coinImages = coinImages.filter(file =>
+staticCoinImages = staticCoinImages.filter(file =>
 	imageExtensions.some(ext => file.toLowerCase().endsWith(ext))
 );
+
+// Get list of blob images from Vercel Blob storage
+interface BlobImage {
+	url: string;
+	pathname: string;
+	filename: string;
+	type: string;
+}
+
+let blobCollectionImages: BlobImage[] = [];
+let blobCoinImages: BlobImage[] = [];
+
+try {
+	const { blobs } = await list();
+	const allBlobImages = blobs
+		.filter(blob => /\.(jpg|jpeg|png|gif|webp)$/i.test(blob.pathname))
+		.map(blob => ({
+			url: blob.url,
+			pathname: blob.pathname,
+			filename: blob.pathname.split('/').pop() || '',
+			type: blob.pathname.startsWith('coins/') ? 'coins' : blob.pathname.startsWith('pages/') ? 'pages' : 'collections',
+		}));
+
+	blobCollectionImages = allBlobImages.filter(img => img.type === 'collections');
+	blobCoinImages = allBlobImages.filter(img => img.type === 'coins');
+} catch (error) {
+	console.error('Error listing blob images:', error);
+}
 ---
 
 <AdminLayout title="Image Management">
@@ -51,15 +80,45 @@ coinImages = coinImages.filter(file =>
 
 	<div class="image-sections">
 		<section class="image-section">
-			<h2>Collection Thumbnails ({collectionImages.length})</h2>
+			<h2>Collection Thumbnails ({staticCollectionImages.length + blobCollectionImages.length})</h2>
 			<p class="section-description">
 				Images for collection thumbnails. Recommended size: 400x200px
 			</p>
 
-			{collectionImages.length > 0 ? (
+			{(staticCollectionImages.length > 0 || blobCollectionImages.length > 0) ? (
 				<div class="image-grid">
-					{collectionImages.map((image) => (
-						<div class="image-item">
+					{/* Blob images (can be deleted) */}
+					{blobCollectionImages.map((image) => (
+						<div class="image-item blob-image">
+							<span class="image-badge">Uploaded</span>
+							<img
+								src={image.url}
+								alt={image.filename}
+								loading="lazy"
+							/>
+							<div class="image-info">
+								<code>{image.filename}</code>
+								<div class="image-actions">
+									<button
+										onclick={`copyToClipboard('${image.url}')`}
+										class="btn btn-sm"
+									>
+										Copy URL
+									</button>
+									<button
+										onclick={`deleteBlobImage('collections', '${encodeURIComponent(image.url)}')`}
+										class="btn btn-sm btn-danger"
+									>
+										Delete
+									</button>
+								</div>
+							</div>
+						</div>
+					))}
+					{/* Static images (cannot be deleted - in git) */}
+					{staticCollectionImages.map((image) => (
+						<div class="image-item static-image">
+							<span class="image-badge static">Static</span>
 							<img
 								src={`/images/collections/${image}`}
 								alt={image}
@@ -69,17 +128,12 @@ coinImages = coinImages.filter(file =>
 								<code>{image}</code>
 								<div class="image-actions">
 									<button
-										onclick={`copyFilename('${image}')`}
+										onclick={`copyToClipboard('/images/collections/${image}')`}
 										class="btn btn-sm"
 									>
-										Copy Name
+										Copy Path
 									</button>
-									<button
-										onclick={`deleteImage('collections', '${image}')`}
-										class="btn btn-sm btn-danger"
-									>
-										Delete
-									</button>
+									<span class="static-note" title="Static images are stored in git and cannot be deleted here">Git file</span>
 								</div>
 							</div>
 						</div>
@@ -93,15 +147,45 @@ coinImages = coinImages.filter(file =>
 		</section>
 
 		<section class="image-section">
-			<h2>Coin Images ({coinImages.length})</h2>
+			<h2>Coin Images ({staticCoinImages.length + blobCoinImages.length})</h2>
 			<p class="section-description">
 				Images for individual coins. Recommended size: 400x300px
 			</p>
 
-			{coinImages.length > 0 ? (
+			{(staticCoinImages.length > 0 || blobCoinImages.length > 0) ? (
 				<div class="image-grid">
-					{coinImages.map((image) => (
-						<div class="image-item">
+					{/* Blob images (can be deleted) */}
+					{blobCoinImages.map((image) => (
+						<div class="image-item blob-image">
+							<span class="image-badge">Uploaded</span>
+							<img
+								src={image.url}
+								alt={image.filename}
+								loading="lazy"
+							/>
+							<div class="image-info">
+								<code>{image.filename}</code>
+								<div class="image-actions">
+									<button
+										onclick={`copyToClipboard('${image.url}')`}
+										class="btn btn-sm"
+									>
+										Copy URL
+									</button>
+									<button
+										onclick={`deleteBlobImage('coins', '${encodeURIComponent(image.url)}')`}
+										class="btn btn-sm btn-danger"
+									>
+										Delete
+									</button>
+								</div>
+							</div>
+						</div>
+					))}
+					{/* Static images (cannot be deleted - in git) */}
+					{staticCoinImages.map((image) => (
+						<div class="image-item static-image">
+							<span class="image-badge static">Static</span>
 							<img
 								src={`/images/coins/${image}`}
 								alt={image}
@@ -111,17 +195,12 @@ coinImages = coinImages.filter(file =>
 								<code>{image}</code>
 								<div class="image-actions">
 									<button
-										onclick={`copyFilename('${image}')`}
+										onclick={`copyToClipboard('/images/coins/${image}')`}
 										class="btn btn-sm"
 									>
-										Copy Name
+										Copy Path
 									</button>
-									<button
-										onclick={`deleteImage('coins', '${image}')`}
-										class="btn btn-sm btn-danger"
-									>
-										Delete
-									</button>
+									<span class="static-note" title="Static images are stored in git and cannot be deleted here">Git file</span>
 								</div>
 							</div>
 						</div>
@@ -295,6 +374,35 @@ coinImages = coinImages.filter(file =>
 
 	.image-item:hover {
 		box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+	}
+
+	.image-item {
+		position: relative;
+	}
+
+	.image-badge {
+		position: absolute;
+		top: 8px;
+		left: 8px;
+		padding: 2px 8px;
+		font-size: 0.7rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		border-radius: 3px;
+		background: #28a745;
+		color: white;
+		z-index: 1;
+	}
+
+	.image-badge.static {
+		background: #6c757d;
+	}
+
+	.static-note {
+		font-size: 0.75rem;
+		color: #6c757d;
+		font-style: italic;
+		cursor: help;
 	}
 
 	.image-item img {
@@ -653,8 +761,8 @@ coinImages = coinImages.filter(file =>
 		document.getElementById('uploadResult').style.display = 'none';
 	}
 
-	window.copyFilename = function(filename) {
-		navigator.clipboard.writeText(filename).then(() => {
+	window.copyToClipboard = function(text) {
+		navigator.clipboard.writeText(text).then(() => {
 			// Show temporary success message
 			const button = event.target;
 			const originalText = button.textContent;
@@ -666,24 +774,27 @@ coinImages = coinImages.filter(file =>
 				button.style.background = '';
 			}, 2000);
 		}).catch(() => {
-			alert('Failed to copy filename to clipboard');
+			alert('Failed to copy to clipboard');
 		});
 	}
 
-	window.deleteImage = function(type, filename) {
+	window.deleteBlobImage = function(type, encodedUrl) {
+		const url = decodeURIComponent(encodedUrl);
+		const filename = url.split('/').pop() || 'this image';
 		if (confirm(`Are you sure you want to delete "${filename}"?`)) {
-			fetch(`/admin/api/images/${type}/${filename}`, {
+			fetch(`/admin/api/images/${type}/${encodedUrl}`, {
 				method: 'DELETE',
 			})
-			.then(response => {
-				if (response.ok) {
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
 					location.reload();
 				} else {
-					alert('Error deleting image. You may need to delete it manually from the file system.');
+					alert('Error deleting image: ' + (data.error || 'Unknown error'));
 				}
 			})
 			.catch(error => {
-				alert('Error deleting image. You may need to delete it manually from the file system.');
+				alert('Error deleting image: ' + error.message);
 			});
 		}
 	}

@@ -52,22 +52,39 @@ const images = await db
 		<span class="current">{coin.name}</span>
 	</nav>
 
-	<!-- Coin Header -->
+	<!-- Coin Title -->
 	<header class="coin-header">
-		<div class="coin-title-section">
-			<h1>{coin.name}</h1>
-			<div class="coin-meta">
-				{coin.year && <span class="meta-item"><strong>Year:</strong> {coin.year}</span>}
-				{coin.condition && <span class="meta-item"><strong>Condition:</strong> {coin.condition}</span>}
-				{coin.mintage && <span class="meta-item"><strong>Mintage:</strong> {coin.mintage}</span>}
-			</div>
-		</div>
+		<h1>{coin.name}</h1>
 	</header>
 
-	<!-- Description -->
+	<!-- Coin Details Box (description with formatted content) -->
 	{coin.description && (
-		<section class="coin-description prose">
-			<Fragment set:html={await marked(coin.description)} />
+		<section class="coin-details-box">
+			<div class="coin-description prose">
+				<Fragment set:html={await marked(coin.description)} />
+			</div>
+			{(coin.year || coin.condition || coin.mintage) && (
+				<div class="coin-specs">
+					{coin.year && (
+						<div class="spec-item">
+							<span class="spec-label">Year:</span>
+							<span class="spec-value">{coin.year}</span>
+						</div>
+					)}
+					{coin.condition && (
+						<div class="spec-item">
+							<span class="spec-label">Condition:</span>
+							<span class="spec-value">{coin.condition}</span>
+						</div>
+					)}
+					{coin.mintage && (
+						<div class="spec-item">
+							<span class="spec-label">Mintage:</span>
+							<span class="spec-value">{coin.mintage}</span>
+						</div>
+					)}
+				</div>
+			)}
 		</section>
 	)}
 
@@ -103,34 +120,12 @@ const images = await db
 		</div>
 	</section>
 
-	<!-- Coin Details -->
-	<section class="details-section">
+	<!-- Collection Info -->
+	<section class="collection-info-section">
 		<h2>Coin Details</h2>
-		<div class="details-grid">
-			<dl class="details-list">
-				{coin.year && (
-					<div class="detail-item">
-						<dt>Year</dt>
-						<dd>{coin.year}</dd>
-					</div>
-				)}
-				{coin.condition && (
-					<div class="detail-item">
-						<dt>Condition</dt>
-						<dd>{coin.condition}</dd>
-					</div>
-				)}
-				{coin.mintage && (
-					<div class="detail-item">
-						<dt>Mintage</dt>
-						<dd>{coin.mintage}</dd>
-					</div>
-				)}
-				<div class="detail-item">
-					<dt>Collection</dt>
-					<dd><a href={`/collections/${collection.slug}`}>{collection.name}</a></dd>
-				</div>
-			</dl>
+		<div class="collection-card">
+			<span class="collection-label">Collection</span>
+			<a href={`/collections/${collection.slug}`} class="collection-name">{collection.name}</a>
 		</div>
 	</section>
 
@@ -220,38 +215,25 @@ const images = await db
 	/* Coin Header */
 	.coin-header {
 		margin-bottom: 2rem;
-		padding-bottom: 1.5rem;
-		border-bottom: 1px solid rgba(212, 175, 55, 0.2);
 	}
 
 	.coin-header h1 {
-		margin-bottom: 0.75rem;
+		margin-bottom: 0;
+		font-size: clamp(2rem, 5vw, 3rem);
 	}
 
-	.coin-meta {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1.5rem;
-	}
-
-	.meta-item {
-		color: rgb(var(--gray));
-		font-size: 0.9375rem;
-	}
-
-	.meta-item strong {
-		color: var(--navy);
-		font-weight: 600;
-	}
-
-	/* Description */
-	.coin-description {
+	/* Coin Details Box */
+	.coin-details-box {
 		background: white;
-		padding: 1.75rem;
+		padding: 2rem;
 		border-radius: 12px;
 		margin-bottom: 3rem;
 		box-shadow: var(--shadow-sm);
 		border-left: 4px solid var(--gold);
+	}
+
+	.coin-description {
+		margin-bottom: 1.5rem;
 	}
 
 	.coin-description :global(p) {
@@ -289,6 +271,28 @@ const images = await db
 	.coin-description :global(li) {
 		margin-bottom: 0.5rem;
 		line-height: 1.75;
+	}
+
+	.coin-specs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1.5rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid rgba(0, 0, 0, 0.08);
+	}
+
+	.spec-item {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.spec-label {
+		font-weight: 600;
+		color: var(--navy);
+	}
+
+	.spec-value {
+		color: rgb(var(--gray-dark));
 	}
 
 	/* Gallery Section */
@@ -387,51 +391,43 @@ const images = await db
 		margin: 0;
 	}
 
-	/* Details Section */
-	.details-section {
+	/* Collection Info Section */
+	.collection-info-section {
 		background: white;
 		padding: 2rem;
 		border-radius: 12px;
 		box-shadow: var(--shadow-sm);
 		margin-bottom: 2rem;
+		border-left: 4px solid var(--gold);
 	}
 
-	.details-section h2 {
-		margin-bottom: 1.5rem;
-		font-size: 1.5rem;
+	.collection-info-section h2 {
+		margin-bottom: 1rem;
+		font-size: 1.25rem;
 	}
 
-	.details-list {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-		gap: 1.25rem;
-		margin: 0;
+	.collection-card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
 	}
 
-	.detail-item {
-		padding: 1rem;
-		background: var(--cream);
-		border-radius: 8px;
-		border: 1px solid rgba(212, 175, 55, 0.15);
-	}
-
-	.detail-item dt {
+	.collection-label {
 		font-size: 0.8125rem;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		color: rgb(var(--gray));
-		margin-bottom: 0.25rem;
 	}
 
-	.detail-item dd {
-		margin: 0;
-		font-size: 1.0625rem;
-		color: var(--navy);
-		font-weight: 500;
-	}
-
-	.detail-item dd a {
+	.collection-name {
+		font-size: 1.125rem;
 		color: var(--gold-dark);
+		font-weight: 500;
+		text-decoration: none;
+	}
+
+	.collection-name:hover {
+		text-decoration: underline;
 	}
 
 	/* Back Navigation */

@@ -71,6 +71,15 @@ const {
         class="preview-image"
         style={initialValue ? '' : 'display: none;'}
       />
+      <button
+        type="button"
+        class="clear-image-btn"
+        id={`${inputId}-clear-btn`}
+        style={initialValue ? '' : 'display: none;'}
+        title="Remove image"
+      >
+        &times;
+      </button>
     </div>
 
     <!-- Upload zone -->
@@ -167,6 +176,35 @@ const {
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  .preview-area {
+    position: relative;
+  }
+
+  .clear-image-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #dc3545;
+    color: white;
+    border: none;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.9;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  .clear-image-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
   }
 
   .upload-zone {
@@ -377,12 +415,28 @@ const {
     hiddenInput.addEventListener('input', updatePreview);
     hiddenInput.addEventListener('change', updatePreview);
 
+    // Clear button handler
+    const clearBtn = field.querySelector(`#${fieldId}-clear-btn`);
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        hiddenInput.value = '';
+        if (previewImg) {
+          previewImg.style.display = 'none';
+          previewImg.src = '';
+        }
+        if (placeholder) placeholder.style.display = 'flex';
+        clearBtn.style.display = 'none';
+        showStatus('Image removed', 'success');
+      });
+    }
+
     function updatePreview() {
       const value = hiddenInput.value;
       if (value && previewImg) {
         previewImg.src = value;
         previewImg.style.display = 'block';
         if (placeholder) placeholder.style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'flex';
         statusEl.textContent = '';
         statusEl.className = 'upload-status';
       }
@@ -434,6 +488,7 @@ const {
             previewImg.style.display = 'block';
           }
           if (placeholder) placeholder.style.display = 'none';
+          if (clearBtn) clearBtn.style.display = 'flex';
 
           showStatus('Image uploaded successfully!', 'success');
         } else {
