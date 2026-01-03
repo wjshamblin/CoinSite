@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import ImageUploadField from '../../../components/admin/ImageUploadField.astro';
+import HtmlEditor from '../../../components/admin/HtmlEditor.astro';
 export const prerender = false; // Enable server-side rendering for authentication
 
 import { db, Collections, Coins } from 'astro:db';
@@ -144,18 +145,13 @@ if (Astro.request.method === 'POST') {
 			{errors.collectionId && <span class="error-text">{errors.collectionId}</span>}
 		</div>
 
-		<div class="form-group">
-			<label for="description">Description</label>
-			<textarea
-				id="description"
-				name="description"
-				rows="3"
-				placeholder="Describe this coin using Markdown for formatting..."
-				class={errors.description ? 'error' : ''}
-			>{formData.description}</textarea>
-			<small>Supports Markdown: **bold**, *italic*, [links](url), - lists</small>
-			{errors.description && <span class="error-text">{errors.description}</span>}
-		</div>
+		<HtmlEditor
+			inputId="description"
+			label="Description"
+			initialValue={formData.description}
+			placeholder="Describe this coin... You can paste HTML or use the toolbar for formatting."
+			rows={4}
+		/>
 
 		<div class="form-row">
 			<div class="form-group">

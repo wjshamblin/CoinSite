@@ -3,7 +3,6 @@
 import Layout from '../../../../layouts/Layout.astro';
 import { db, Collections, Coins, Images, eq, and } from 'astro:db';
 import { getImageUrl } from '../../../../lib/images';
-import { marked } from 'marked';
 
 export const prerender = false;
 
@@ -87,7 +86,7 @@ const galleryImages = images.filter(img => img.id !== primaryImage?.id);
 		<section class="coin-details-box">
 			<h2>Coin Details</h2>
 			<div class="coin-description prose">
-				<Fragment set:html={await marked(coin.description)} />
+				<Fragment set:html={coin.description} />
 			</div>
 			{(coin.year || coin.condition || coin.mintage) && (
 				<div class="coin-specs">

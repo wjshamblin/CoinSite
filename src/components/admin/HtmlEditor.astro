@@ -1,0 +1,134 @@
+---
+interface Props {
+	inputId: string;
+	inputName?: string;
+	label: string;
+	initialValue?: string;
+	placeholder?: string;
+	rows?: number;
+}
+
+const {
+	inputId,
+	inputName = inputId,
+	label,
+	initialValue = '',
+	placeholder = 'Enter content...',
+	rows = 6
+} = Astro.props;
+
+const editorHeight = rows * 24 + 42; // Approximate height based on rows
+---
+
+<div class="html-editor-field">
+	<label for={inputId}>{label}</label>
+
+	<!-- Hidden input to store the HTML value for form submission -->
+	<input type="hidden" id={inputId} name={inputName} value={initialValue} />
+
+	<!-- Quill editor container -->
+	<div id={`${inputId}-editor`} class="quill-editor" style={`min-height: ${editorHeight}px`}></div>
+
+	<small>Rich text editor: use toolbar for formatting, or paste HTML directly. Links and formatting are preserved.</small>
+</div>
+
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script is:inline src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script is:inline src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+
+<script is:inline define:vars={{ inputId, initialValue, placeholder }}>
+	document.addEventListener('DOMContentLoaded', function() {
+		const editorContainer = document.getElementById(inputId + '-editor');
+		const hiddenInput = document.getElementById(inputId);
+
+		if (!editorContainer || !hiddenInput) return;
+
+		// Initialize Quill
+		const quill = new Quill(editorContainer, {
+			theme: 'snow',
+			placeholder: placeholder,
+			modules: {
+				toolbar: [
+					[{ 'header': [1, 2, 3, false] }],
+					['bold', 'italic', 'underline', 'strike'],
+					[{ 'list': 'ordered'}, { 'list': 'bullet' }],
+					['link'],
+					['clean']
+				]
+			}
+		});
+
+		// Set initial content (sanitized)
+		if (initialValue) {
+			const sanitizedContent = DOMPurify.sanitize(initialValue, {
+				ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'blockquote', 'span'],
+				ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
+			});
+			quill.clipboard.dangerouslyPasteHTML(sanitizedContent);
+		}
+
+		// Update hidden input when content changes (sanitized)
+		quill.on('text-change', function() {
+			const rawHtml = quill.root.innerHTML;
+			// Don't save empty editor content
+			if (rawHtml === '<p><br></p>') {
+				hiddenInput.value = '';
+				return;
+			}
+			// Sanitize before storing
+			const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
+				ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'blockquote', 'span'],
+				ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
+			});
+			hiddenInput.value = sanitizedHtml;
+		});
+	});
+</script>
+
+<style>
+	.html-editor-field {
+		margin-bottom: 1.5rem;
+	}
+
+	.html-editor-field label {
+		display: block;
+		margin-bottom: 0.5rem;
+		color: #495057;
+		font-weight: 500;
+	}
+
+	.quill-editor {
+		background: white;
+		border-radius: 0 0 4px 4px;
+	}
+
+	.html-editor-field small {
+		display: block;
+		margin-top: 0.5rem;
+		color: #6c757d;
+		font-size: 0.8rem;
+	}
+
+	/* Quill overrides */
+	:global(.ql-toolbar.ql-snow) {
+		border: 1px solid #ced4da;
+		border-radius: 4px 4px 0 0;
+		background: #f8f9fa;
+	}
+
+	:global(.ql-container.ql-snow) {
+		border: 1px solid #ced4da;
+		border-top: none;
+		border-radius: 0 0 4px 4px;
+		font-size: 0.95rem;
+		font-family: inherit;
+	}
+
+	:global(.ql-editor) {
+		min-height: 120px;
+	}
+
+	:global(.ql-editor a) {
+		color: #007bff;
+	}
+</style>
