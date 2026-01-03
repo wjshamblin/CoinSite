@@ -20,6 +20,19 @@ function getImage(image: string): string {
 	}
 	return getImageUrl(image, 'coins');
 }
+
+// Helper to strip HTML and truncate description for slideshow display
+function getExcerpt(html: string, maxLength: number = 200): string {
+	if (!html) return '';
+	// Strip HTML tags
+	const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+	// Truncate to maxLength
+	if (text.length <= maxLength) return text;
+	// Cut at last space before maxLength
+	const truncated = text.substring(0, maxLength);
+	const lastSpace = truncated.lastIndexOf(' ');
+	return (lastSpace > 0 ? truncated.substring(0, lastSpace) : truncated) + '...';
+}
 ---
 
 <div class="slideshow-container">
@@ -42,7 +55,7 @@ function getImage(image: string): string {
 						) : (
 							<h3>{coin.title}</h3>
 						)}
-						<p class="description">{coin.description}</p>
+						<p class="description">{getExcerpt(coin.description)}</p>
 						{coin.collection && (
 							<p class="collection">From: {coin.collection}</p>
 						)}
