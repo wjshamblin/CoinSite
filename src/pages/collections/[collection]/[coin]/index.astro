@@ -33,16 +33,24 @@ if (coins.length === 0) {
 
 const coin = coins[0];
 
-// Get all images for this coin
+// Get all images for this coin from the Images table
 const images = await db
 	.select()
 	.from(Images)
 	.where(eq(Images.coinId, coin.id))
 	.orderBy(Images.sortOrder);
 
-// Get the primary image (first one or one marked as primary)
-const primaryImage = images.find(img => img.isPrimary) || images[0];
-const galleryImages = images.filter(img => img.id !== primaryImage?.id);
+// Get the primary image: first check Images table, then fall back to coin.primaryImage
+const primaryImageFromTable = images.find(img => img.isPrimary) || images[0];
+const primaryImageUrl = primaryImageFromTable
+	? getImageUrl(primaryImageFromTable.filename, 'coins')
+	: coin.primaryImage
+		? getImageUrl(coin.primaryImage, 'coins')
+		: null;
+const primaryImageAlt = primaryImageFromTable?.alt || coin.name;
+const galleryImages = primaryImageFromTable
+	? images.filter(img => img.id !== primaryImageFromTable.id)
+	: images;
 ---
 
 <Layout title={`${coin.name} - ${collection.name}`}>
@@ -61,16 +69,16 @@ const galleryImages = images.filter(img => img.id !== primaryImage?.id);
 	</header>
 
 	<!-- Primary Image -->
-	{primaryImage && (
+	{primaryImageUrl && (
 		<section class="primary-image-section">
 			<div class="primary-image-wrapper">
 				<img
-					src={getImageUrl(primaryImage.filename, 'coins')}
-					alt={primaryImage.alt}
+					src={primaryImageUrl}
+					alt={primaryImageAlt}
 					class="primary-coin-image"
 					loading="eager"
 				/>
-				<button class="zoom-btn" aria-label="Zoom image" data-image={getImageUrl(primaryImage.filename, 'coins')}>
+				<button class="zoom-btn" aria-label="Zoom image" data-image={primaryImageUrl}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 						<circle cx="11" cy="11" r="8"/>
 						<path d="m21 21-4.35-4.35"/>
