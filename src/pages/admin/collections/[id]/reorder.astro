@@ -1,0 +1,445 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import { db, Collections, Coins, eq } from 'astro:db';
+import { requireAuth, isRedirect } from '../../../../lib/authMiddleware';
+import { getImageUrl } from '../../../../lib/images';
+
+export const prerender = false;
+
+// Check authentication
+const authResult = await requireAuth(Astro);
+if (isRedirect(authResult)) return authResult;
+
+const id = parseInt(Astro.params.id);
+
+// Get the collection
+const collection = await db.select().from(Collections).where(eq(Collections.id, id)).then(rows => rows[0]);
+
+if (!collection) {
+	return Astro.redirect('/admin/collections');
+}
+
+// Get all coins for this collection, ordered by sortOrder
+const coins = await db
+	.select()
+	.from(Coins)
+	.where(eq(Coins.collectionId, id))
+	.orderBy(Coins.sortOrder);
+---
+
+<AdminLayout title={`Reorder Coins: ${collection.name}`}>
+	<div class="page-header">
+		<div class="header-left">
+			<h1>Reorder Coins</h1>
+			<p class="collection-name">{collection.name}</p>
+		</div>
+		<div class="header-actions">
+			<a href={`/admin/collections/edit/${id}`} class="btn btn-outline">
+				← Back to Collection
+			</a>
+		</div>
+	</div>
+
+	<div class="instructions">
+		<p>Drag and drop coins to reorder them. Changes are saved automatically.</p>
+	</div>
+
+	{coins.length === 0 ? (
+		<div class="empty-state">
+			<h3>No coins in this collection</h3>
+			<p>Add some coins first before reordering.</p>
+			<a href="/admin/coins/new" class="btn btn-primary">Add Coin</a>
+		</div>
+	) : (
+		<div class="coins-list" id="sortable-list">
+			{coins.map((coin, index) => (
+				<div class="coin-item" data-id={coin.id}>
+					<div class="drag-handle">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<line x1="8" y1="6" x2="16" y2="6"></line>
+							<line x1="8" y1="12" x2="16" y2="12"></line>
+							<line x1="8" y1="18" x2="16" y2="18"></line>
+						</svg>
+					</div>
+					<div class="coin-image">
+						<img
+							src={getImageUrl(coin.primaryImage, 'coins')}
+							alt={coin.name}
+							onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+						/>
+						<div class="image-placeholder" style="display: none;">
+							🪙
+						</div>
+					</div>
+					<div class="coin-info">
+						<strong>{coin.name}</strong>
+						{coin.year && <span class="coin-year">{coin.year}</span>}
+					</div>
+					<div class="coin-order">
+						<span class="order-number">{index + 1}</span>
+					</div>
+				</div>
+			))}
+		</div>
+	)}
+
+	<div class="save-status" id="save-status"></div>
+</AdminLayout>
+
+<style>
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #dee2e6;
+	}
+
+	.page-header h1 {
+		margin: 0 0 0.25rem 0;
+		color: #495057;
+	}
+
+	.collection-name {
+		margin: 0;
+		color: #6c757d;
+		font-size: 1rem;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.btn {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		background: #007bff;
+		color: white;
+		text-decoration: none;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:hover {
+		background: #0056b3;
+	}
+
+	.btn-primary {
+		background: #007bff;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline:hover {
+		background: #007bff;
+		color: white;
+	}
+
+	.instructions {
+		background: #e7f1ff;
+		padding: 1rem;
+		border-radius: 8px;
+		margin-bottom: 1.5rem;
+	}
+
+	.instructions p {
+		margin: 0;
+		color: #0056b3;
+	}
+
+	.coins-list {
+		background: white;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		overflow: hidden;
+	}
+
+	.coin-item {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 1rem;
+		border-bottom: 1px solid #dee2e6;
+		background: white;
+		cursor: grab;
+		transition: background 0.2s, box-shadow 0.2s;
+	}
+
+	.coin-item:last-child {
+		border-bottom: none;
+	}
+
+	.coin-item:hover {
+		background: #f8f9fa;
+	}
+
+	.coin-item.dragging {
+		background: #e7f1ff;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+		cursor: grabbing;
+	}
+
+	.coin-item.drag-over {
+		border-top: 3px solid #007bff;
+	}
+
+	.drag-handle {
+		color: #adb5bd;
+		cursor: grab;
+		padding: 0.5rem;
+		display: flex;
+		align-items: center;
+	}
+
+	.coin-item.dragging .drag-handle {
+		cursor: grabbing;
+	}
+
+	.coin-image {
+		width: 60px;
+		height: 60px;
+		border-radius: 8px;
+		overflow: hidden;
+		background: #f8f9fa;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.coin-image img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.image-placeholder {
+		font-size: 1.5rem;
+		color: #6c757d;
+	}
+
+	.coin-info {
+		flex: 1;
+	}
+
+	.coin-info strong {
+		display: block;
+		color: #495057;
+		margin-bottom: 0.25rem;
+	}
+
+	.coin-year {
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+
+	.coin-order {
+		padding: 0 1rem;
+	}
+
+	.order-number {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		background: #f8f9fa;
+		border-radius: 50%;
+		font-weight: 600;
+		color: #495057;
+		font-size: 0.875rem;
+	}
+
+	.empty-state {
+		text-align: center;
+		padding: 3rem;
+		background: white;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		color: #6c757d;
+	}
+
+	.empty-state h3 {
+		color: #495057;
+		margin-bottom: 0.5rem;
+	}
+
+	.empty-state p {
+		margin-bottom: 1.5rem;
+	}
+
+	.save-status {
+		position: fixed;
+		bottom: 2rem;
+		right: 2rem;
+		padding: 0.75rem 1.25rem;
+		border-radius: 8px;
+		font-size: 0.9rem;
+		opacity: 0;
+		transition: opacity 0.3s;
+		pointer-events: none;
+	}
+
+	.save-status.saving {
+		background: #ffc107;
+		color: #212529;
+		opacity: 1;
+	}
+
+	.save-status.saved {
+		background: #28a745;
+		color: white;
+		opacity: 1;
+	}
+
+	.save-status.error {
+		background: #dc3545;
+		color: white;
+		opacity: 1;
+	}
+
+	@media (max-width: 768px) {
+		.page-header {
+			flex-direction: column;
+			gap: 1rem;
+		}
+
+		.coin-item {
+			padding: 0.75rem;
+			gap: 0.75rem;
+		}
+
+		.coin-image {
+			width: 48px;
+			height: 48px;
+		}
+	}
+</style>
+
+<script is:inline>
+	const list = document.getElementById('sortable-list');
+	const statusEl = document.getElementById('save-status');
+	let draggedItem = null;
+
+	if (list) {
+		// Add event listeners to all coin items
+		const items = list.querySelectorAll('.coin-item');
+
+		items.forEach(item => {
+			item.setAttribute('draggable', 'true');
+
+			item.addEventListener('dragstart', handleDragStart);
+			item.addEventListener('dragend', handleDragEnd);
+			item.addEventListener('dragover', handleDragOver);
+			item.addEventListener('drop', handleDrop);
+			item.addEventListener('dragleave', handleDragLeave);
+		});
+	}
+
+	function handleDragStart(e) {
+		draggedItem = e.currentTarget;
+		draggedItem.classList.add('dragging');
+		e.dataTransfer.effectAllowed = 'move';
+		e.dataTransfer.setData('text/plain', '');
+	}
+
+	function handleDragEnd(e) {
+		e.currentTarget.classList.remove('dragging');
+		draggedItem = null;
+
+		// Remove all drag-over classes
+		document.querySelectorAll('.drag-over').forEach(item => {
+			item.classList.remove('drag-over');
+		});
+
+		// Update order numbers
+		updateOrderNumbers();
+
+		// Save the new order
+		saveOrder();
+	}
+
+	function handleDragOver(e) {
+		e.preventDefault();
+		e.dataTransfer.dropEffect = 'move';
+
+		const item = e.currentTarget;
+		if (item !== draggedItem) {
+			item.classList.add('drag-over');
+
+			const rect = item.getBoundingClientRect();
+			const midY = rect.top + rect.height / 2;
+
+			if (e.clientY < midY) {
+				item.parentNode.insertBefore(draggedItem, item);
+			} else {
+				item.parentNode.insertBefore(draggedItem, item.nextSibling);
+			}
+		}
+	}
+
+	function handleDrop(e) {
+		e.preventDefault();
+		e.currentTarget.classList.remove('drag-over');
+	}
+
+	function handleDragLeave(e) {
+		e.currentTarget.classList.remove('drag-over');
+	}
+
+	function updateOrderNumbers() {
+		const items = list.querySelectorAll('.coin-item');
+		items.forEach((item, index) => {
+			const orderEl = item.querySelector('.order-number');
+			if (orderEl) {
+				orderEl.textContent = index + 1;
+			}
+		});
+	}
+
+	async function saveOrder() {
+		const items = list.querySelectorAll('.coin-item');
+		const coinOrder = Array.from(items).map(item => parseInt(item.dataset.id));
+
+		showStatus('Saving...', 'saving');
+
+		try {
+			const response = await fetch('/admin/api/coins/reorder', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ coinOrder })
+			});
+
+			if (response.ok) {
+				showStatus('Saved!', 'saved');
+			} else {
+				showStatus('Error saving', 'error');
+			}
+		} catch (error) {
+			console.error('Error saving order:', error);
+			showStatus('Error saving', 'error');
+		}
+	}
+
+	function showStatus(message, type) {
+		statusEl.textContent = message;
+		statusEl.className = 'save-status ' + type;
+
+		if (type === 'saved') {
+			setTimeout(() => {
+				statusEl.className = 'save-status';
+			}, 2000);
+		}
+	}
+</script>

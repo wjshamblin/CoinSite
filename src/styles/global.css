@@ -32,28 +32,34 @@
 /* Root variables */
 :root {
   /* Legacy support */
-  --accent: #d97706;
-  --accent-dark: #92400e;
+  --accent: #7A756D;
+  --accent-dark: #5a5650;
   --black: 15, 18, 25;
-  --gray: 120, 113, 108;
-  --gray-light: 231, 229, 228;
-  --gray-dark: 41, 37, 36;
+  --gray: 122, 117, 109;
+  --gray-light: 218, 214, 203;
+  --gray-dark: 58, 55, 52;
 
-  /* Modern palette */
-  --gold: #d4af37;
-  --gold-light: #f4e4ba;
-  --gold-dark: #996515;
-  --navy: #0f172a;
-  --navy-light: #1e293b;
-  --cream: #fefcf3;
-  --ivory: #fffff0;
+  /* Modern palette - Neutral Greys "Silence of the Greys" */
+  --gold: #7A756D;
+  --gold-light: #ECE8DE;
+  --gold-dark: #5a5650;
+  --navy: #3a3734;
+  --navy-light: #4a4742;
+  --cream: #ECE8DE;
+  --ivory: #f5f3ed;
+
+  /* Neutral palette */
+  --neutral-100: #ECE8DE;
+  --neutral-200: #DAD6CB;
+  --neutral-300: #C8C3B4;
+  --neutral-400: #7A756D;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-gold: 0 4px 14px 0 rgba(212, 175, 55, 0.25);
+  --shadow-gold: 0 4px 14px 0 rgba(122, 117, 109, 0.25);
 
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);

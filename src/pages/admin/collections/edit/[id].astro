@@ -74,6 +74,9 @@ if (Astro.request.method === 'POST') {
 	<div class="page-header">
 		<h1>Edit Collection</h1>
 		<div class="header-actions">
+			<a href={`/admin/collections/${collection.id}/reorder`} class="btn btn-outline">
+				↕️ Reorder Coins
+			</a>
 			<a href={`/collections/${collection.slug}`} target="_blank" class="btn btn-outline">
 				👁️ View Collection
 			</a>

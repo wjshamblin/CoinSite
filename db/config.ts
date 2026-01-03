@@ -24,6 +24,7 @@ const Coins = defineTable({
     mintage: column.text({ optional: true }),
     condition: column.text({ optional: true }),
     primaryImage: column.text(), // filename for main coin image (used in gallery)
+    sortOrder: column.number({ default: 0 }), // for ordering coins within a collection
     createdAt: column.date({ default: new Date() }),
   },
   indexes: {

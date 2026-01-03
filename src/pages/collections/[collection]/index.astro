@@ -21,11 +21,12 @@ if (collections.length === 0) {
 
 const collection = collections[0];
 
-// Get all coins for this collection
+// Get all coins for this collection, ordered by sortOrder
 const coins = await db
 	.select()
 	.from(Coins)
-	.where(eq(Coins.collectionId, collection.id));
+	.where(eq(Coins.collectionId, collection.id))
+	.orderBy(Coins.sortOrder);
 ---
 
 <Layout title={`${collection.name} - Coins`}>
