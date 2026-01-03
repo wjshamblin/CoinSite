@@ -34,7 +34,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
         return {
           allowedContentTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-          maximumSizeInBytes: 10 * 1024 * 1024, // 10MB max
+          maximumSizeInBytes: 50 * 1024 * 1024, // 50MB max
         };
       },
       onUploadCompleted: async ({ blob }) => {
