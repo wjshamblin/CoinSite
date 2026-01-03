@@ -25,7 +25,8 @@ let formData = {
 	year: '',
 	mintage: '',
 	condition: '',
-	primaryImage: ''
+	primaryImage: '',
+	featured: false
 };
 let csrfToken = generateCsrfToken();
 
@@ -45,7 +46,8 @@ if (Astro.request.method === 'POST') {
 				year: data.get('year') as string,
 				mintage: data.get('mintage') as string,
 				condition: data.get('condition') as string,
-				primaryImage: data.get('primaryImage') as string
+				primaryImage: data.get('primaryImage') as string,
+				featured: data.get('featured') === 'on'
 			};
 
 			// Basic validation
@@ -65,6 +67,7 @@ if (Astro.request.method === 'POST') {
 					mintage: formData.mintage || null,
 					condition: formData.condition || null,
 					primaryImage: formData.primaryImage,
+					featured: formData.featured,
 					createdAt: new Date()
 				});
 
@@ -205,6 +208,20 @@ if (Astro.request.method === 'POST') {
 			error={errors.primaryImage}
 		/>
 
+		<div class="form-group checkbox-group">
+			<label class="checkbox-label">
+				<input
+					type="checkbox"
+					name="featured"
+					checked={formData.featured}
+				/>
+				<span class="checkbox-text">
+					Featured Coin
+					<small>Show this coin in the homepage slideshow</small>
+				</span>
+			</label>
+		</div>
+
 		<div class="form-actions">
 			<button type="submit" class="btn btn-primary">
 				Create Coin
@@ -290,6 +307,41 @@ if (Astro.request.method === 'POST') {
 
 	.form-group {
 		margin-bottom: 1.5rem;
+	}
+
+	.checkbox-group {
+		padding: 1rem;
+		background: #f8f9fa;
+		border-radius: 8px;
+		border: 1px solid #e9ecef;
+	}
+
+	.checkbox-label {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.75rem;
+		cursor: pointer;
+	}
+
+	.checkbox-label input[type="checkbox"] {
+		width: 20px;
+		height: 20px;
+		margin-top: 2px;
+		cursor: pointer;
+		accent-color: #007bff;
+	}
+
+	.checkbox-text {
+		display: flex;
+		flex-direction: column;
+		font-weight: 600;
+		color: #495057;
+	}
+
+	.checkbox-text small {
+		font-weight: 400;
+		color: #6c757d;
+		margin-top: 0.25rem;
 	}
 
 	.form-group label {

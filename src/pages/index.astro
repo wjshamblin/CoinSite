@@ -1,45 +1,32 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { db, Collections } from 'astro:db';
+import { db, Collections, Coins, eq } from 'astro:db';
 import CoinSlideshow from '../components/CoinSlideshow.astro';
 import { getImageUrl } from '../lib/images';
 
 // Get featured collections for homepage
 const featuredCollections = await db.select().from(Collections).limit(3);
 
-// Featured coins for slideshow
-const featuredCoins = [
-	{
-		image: 'athens-owl-tetradrachm-1.jpg',
-		title: 'Athens Owl Tetradrachm',
-		description: 'A beautiful ancient Greek silver tetradrachm featuring Athena and her sacred owl. These iconic coins were widely used in Mediterranean trade from the 5th century BC.',
-		collection: 'Ancient Greek Coins'
-	},
-	{
-		image: 'phokaia-electrum-hekte-1.jpg',
-		title: 'Phokaia Electrum Hekte',
-		description: 'A rare electrum hekte from the ancient city of Phokaia, featuring a seal. These early coins represent some of the earliest forms of coinage in human history.',
-		collection: 'Ancient Greek Coins'
-	},
-	{
-		image: 'augustus-denarius-1.jpg',
-		title: 'Augustus Denarius',
-		description: 'A Roman silver denarius from the reign of Emperor Augustus, the first Roman Emperor. These coins marked the beginning of the Imperial period in Roman history.',
-		collection: 'Ancient Roman Coins'
-	},
-	{
-		image: 'caesar-denarius-1.jpg',
-		title: 'Julius Caesar Denarius',
-		description: 'A silver denarius featuring the portrait of Julius Caesar, one of the most recognizable figures in ancient history. These coins were minted during his lifetime.',
-		collection: 'Ancient Roman Coins'
-	},
-	{
-		image: 'charles-i-penny-1.jpg',
-		title: 'Charles I Hammered Penny',
-		description: 'A hammered silver penny from the reign of King Charles I of England. These hand-struck coins represent the traditional coinage methods of medieval Europe.',
-		collection: 'Medieval European Coins'
-	}
-];
+// Get featured coins from database for slideshow
+const featuredCoinsData = await db
+	.select({
+		coin: Coins,
+		collectionName: Collections.name,
+		collectionSlug: Collections.slug
+	})
+	.from(Coins)
+	.innerJoin(Collections, eq(Coins.collectionId, Collections.id))
+	.where(eq(Coins.featured, true))
+	.limit(10);
+
+// Transform to slideshow format
+const featuredCoins = featuredCoinsData.map(({ coin, collectionName, collectionSlug }) => ({
+	image: coin.primaryImage,
+	title: coin.name,
+	description: coin.description || '',
+	collection: collectionName,
+	link: `/collections/${collectionSlug}/${coin.slug}`
+}));
 ---
 
 <Layout title="Lord Marcovan Coin Collections">
@@ -64,17 +51,19 @@ const featuredCoins = [
 		</div>
 	</section>
 
-	<!-- Featured Coins Slideshow -->
-	<section class="featured-coins">
-		<div class="section-header">
-			<span class="gold-accent"></span>
-			<h2>Featured Coins</h2>
-			<p class="section-description">
-				Highlights from our collection showcasing exceptional examples of numismatic artistry
-			</p>
-		</div>
-		<CoinSlideshow coins={featuredCoins} />
-	</section>
+	<!-- Featured Coins Slideshow (only shows when there are featured coins) -->
+	{featuredCoins.length > 0 && (
+		<section class="featured-coins">
+			<div class="section-header">
+				<span class="gold-accent"></span>
+				<h2>Featured Coins</h2>
+				<p class="section-description">
+					Highlights from our collection showcasing exceptional examples of numismatic artistry
+				</p>
+			</div>
+			<CoinSlideshow coins={featuredCoins} />
+		</section>
+	)}
 
 	<!-- Collections Grid -->
 	<section class="collections-section">

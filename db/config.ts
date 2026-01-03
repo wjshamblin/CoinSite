@@ -25,6 +25,7 @@ const Coins = defineTable({
     condition: column.text({ optional: true }),
     primaryImage: column.text(), // filename for main coin image (used in gallery)
     sortOrder: column.number({ default: 0 }), // for ordering coins within a collection
+    featured: column.boolean({ default: false }), // show in homepage slideshow
     createdAt: column.date({ default: new Date() }),
   },
   indexes: {

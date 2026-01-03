@@ -7,10 +7,19 @@ export interface Props {
 		title: string;
 		description: string;
 		collection?: string;
+		link?: string;
 	}>;
 }
 
 const { coins } = Astro.props;
+
+// Helper to get correct image URL - handles both full URLs and filenames
+function getImage(image: string): string {
+	if (image.startsWith('http://') || image.startsWith('https://')) {
+		return image;
+	}
+	return getImageUrl(image, 'coins');
+}
 ---
 
 <div class="slideshow-container">
@@ -19,13 +28,31 @@ const { coins } = Astro.props;
 			<div class={`slide ${index === 0 ? 'active' : ''}`} data-slide={index}>
 				<div class="slide-content">
 					<div class="slide-image">
-						<img src={getImageUrl(coin.image, 'coins')} alt={coin.title} loading="lazy" />
+						{coin.link ? (
+							<a href={coin.link}>
+								<img src={getImage(coin.image)} alt={coin.title} loading="lazy" />
+							</a>
+						) : (
+							<img src={getImage(coin.image)} alt={coin.title} loading="lazy" />
+						)}
 					</div>
 					<div class="slide-info">
-						<h3>{coin.title}</h3>
+						{coin.link ? (
+							<a href={coin.link} class="coin-title-link"><h3>{coin.title}</h3></a>
+						) : (
+							<h3>{coin.title}</h3>
+						)}
 						<p class="description">{coin.description}</p>
 						{coin.collection && (
 							<p class="collection">From: {coin.collection}</p>
+						)}
+						{coin.link && (
+							<a href={coin.link} class="view-coin-link">
+								View Coin Details
+								<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+									<path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+								</svg>
+							</a>
 						)}
 					</div>
 				</div>
@@ -150,6 +177,34 @@ const { coins } = Astro.props;
 		color: #007bff;
 		font-weight: 600;
 		margin: 0;
+	}
+
+	.coin-title-link {
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.coin-title-link:hover h3 {
+		color: #007bff;
+	}
+
+	.view-coin-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 1rem;
+		color: #007bff;
+		font-weight: 600;
+		text-decoration: none;
+		transition: gap 0.2s ease;
+	}
+
+	.view-coin-link:hover {
+		gap: 0.75rem;
+	}
+
+	.slide-image a {
+		display: block;
 	}
 
 	/* Navigation Arrows */
