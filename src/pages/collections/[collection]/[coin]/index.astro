@@ -57,6 +57,19 @@ const primaryImageAlt = primaryImageFromTable?.alt || coin.name;
 const galleryImages = primaryImageFromTable
 	? images.filter(img => img.id !== primaryImageFromTable.id)
 	: images;
+
+// Get all coins in this collection to find next/prev
+const allCoinsInCollection = await db
+	.select()
+	.from(Coins)
+	.where(eq(Coins.collectionId, collection.id))
+	.orderBy(Coins.sortOrder);
+
+// Find current coin index and get next coin
+const currentIndex = allCoinsInCollection.findIndex(c => c.id === coin.id);
+const nextCoin = currentIndex < allCoinsInCollection.length - 1
+	? allCoinsInCollection[currentIndex + 1]
+	: allCoinsInCollection[0]; // Wrap to first coin
 ---
 
 <Layout title={`${coin.name} - ${collection.name}`}>
@@ -167,14 +180,22 @@ const galleryImages = primaryImageFromTable
 		<a href={`/collections/${collection.slug}`} class="collection-name">{collection.name}</a>
 	</section>
 
-	<!-- Back Navigation -->
-	<nav class="back-nav">
+	<!-- Navigation -->
+	<nav class="coin-nav">
 		<a href={`/collections/${collection.slug}`} class="back-link">
 			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
 				<path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 			</svg>
 			Back to {collection.name}
 		</a>
+		{nextCoin && nextCoin.id !== coin.id && (
+			<a href={`/collections/${collection.slug}/${nextCoin.slug}`} class="next-link">
+				Next coin in {collection.name}
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			</a>
+		)}
 	</nav>
 </Layout>
 
@@ -520,8 +541,13 @@ const galleryImages = primaryImageFromTable
 		text-decoration: underline;
 	}
 
-	/* Back Navigation */
-	.back-nav {
+	/* Coin Navigation */
+	.coin-nav {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 1rem;
 		margin-top: 3rem;
 		padding-top: 2rem;
 		border-top: 1px solid rgba(0, 0, 0, 0.08);
@@ -538,6 +564,20 @@ const galleryImages = primaryImageFromTable
 	}
 
 	.back-link:hover {
+		gap: 0.75rem;
+	}
+
+	.next-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--gold-dark);
+		font-weight: 600;
+		text-decoration: none;
+		transition: gap var(--transition-fast);
+	}
+
+	.next-link:hover {
 		gap: 0.75rem;
 	}
 
