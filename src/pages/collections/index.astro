@@ -46,7 +46,7 @@ function getThumbnailPath(thumbnail: string): string {
 				</div>
 				<div class="card-content">
 					<h2>{collection.name}</h2>
-					<p>{collection.description}</p>
+					<div class="card-description" set:html={collection.description} />
 					<span class="card-link">
 						Explore Collection
 						<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -80,6 +80,9 @@ function getThumbnailPath(thumbnail: string): string {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
 		gap: 2.5rem;
+		justify-content: center;
+		max-width: 1200px;
+		margin: 0 auto;
 	}
 
 	.collection-card {
@@ -137,11 +140,15 @@ function getThumbnailPath(thumbnail: string): string {
 		color: var(--navy);
 	}
 
-	.card-content p {
+	.card-description {
 		color: rgb(var(--gray));
 		font-size: 0.9375rem;
 		line-height: 1.65;
 		margin-bottom: 1.25rem;
+	}
+
+	.card-description :global(p) {
+		margin: 0;
 	}
 
 	.card-link {
