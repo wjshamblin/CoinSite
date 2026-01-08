@@ -36,7 +36,7 @@ const coins = await db
 		</nav>
 
 		<h1>{collection.name}</h1>
-		<p class="collection-description">{collection.description}</p>
+		<div class="collection-description" set:html={collection.description} />
 
 		<div class="coins-grid">
 			{coins.map((coin) => (
